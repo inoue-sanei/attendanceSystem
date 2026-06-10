@@ -61,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('save-btn').addEventListener('click', onSaveClick);
   document.getElementById('delete-btn').addEventListener('click', deleteAttendance);
   document.getElementById('confirm-month-btn').addEventListener('click', onConfirmMonthClick);
+  document.getElementById('bulk-register-btn').addEventListener('click', onBulkRegisterClick);
 });
 
 // ────────────────────────────────
@@ -260,19 +261,22 @@ function _badgeLabel(record) {
 }
 
 function updateConfirmationUI() {
-  const banner = document.getElementById('confirmed-banner');
-  const btn    = document.getElementById('confirm-month-btn');
-  const grid   = document.getElementById('calendar-grid');
+  const banner    = document.getElementById('confirmed-banner');
+  const confirmBtn = document.getElementById('confirm-month-btn');
+  const bulkBtn   = document.getElementById('bulk-register-btn');
+  const grid      = document.getElementById('calendar-grid');
 
   if (isConfirmed) {
     document.getElementById('confirmed-banner-text').textContent =
       `${currentYear}年${currentMonth}月`;
     banner.classList.remove('hidden');
-    btn.classList.add('hidden');
+    confirmBtn.classList.add('hidden');
+    bulkBtn.classList.add('hidden');
     grid.classList.add('confirmed');
   } else {
     banner.classList.add('hidden');
-    btn.classList.remove('hidden');
+    confirmBtn.classList.remove('hidden');
+    bulkBtn.classList.remove('hidden');
     grid.classList.remove('confirmed');
   }
 }
@@ -316,11 +320,20 @@ function openModal(dateStr) {
     document.getElementById('half-paid-leave').checked     = false;
     document.getElementById('work-description').value      = '';
     document.getElementById('reason').value                = '';
-    document.getElementById('departure-station').value     = '';
-    document.getElementById('arrival-station').value       = '';
-    document.getElementById('transport-cost').value        = '';
-    document.querySelectorAll('input[name="work-location"]').forEach(cb => cb.checked = false);
-    setViaStations([]);
+    // デフォルト交通情報を適用
+    document.getElementById('departure-station').value     = document.getElementById('default-departure-station').value;
+    document.getElementById('arrival-station').value       = document.getElementById('default-arrival-station').value;
+    document.getElementById('transport-cost').value        = document.getElementById('default-transport-cost').value;
+    const _defVia = document.getElementById('default-via-station').value.trim();
+    setViaStations(_defVia ? [_defVia] : []);
+    // デフォルト勤務地・業務内容を適用
+    const _defLocs = Array.from(document.querySelectorAll('input[name="default-work-location"]:checked'))
+      .map(cb => cb.value);
+    document.querySelectorAll('input[name="work-location"]').forEach(cb => {
+      cb.checked = _defLocs.includes(cb.value);
+    });
+    document.getElementById('work-description').value =
+      document.getElementById('default-work-description').value;
     document.getElementById('delete-btn').style.display = 'none';
   }
 
@@ -502,6 +515,124 @@ async function deleteAttendance() {
     closeModal();
   } catch {
     alert('通信エラーが発生しました');
+  }
+}
+
+// ────────────────────────────────
+//  平日一括出勤登録
+// ────────────────────────────────
+function onBulkRegisterClick() {
+  const DOW_LABELS = ['日','月','火','水','木','金','土'];
+  const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+  const targets = [];
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${currentYear}-${String(currentMonth).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const dow = new Date(currentYear, currentMonth - 1, day).getDay();
+    // 平日 かつ 未登録 かつ 祝日でない
+    if (dow !== 0 && dow !== 6 && !attendanceMap[dateStr] && !holidayMap[dateStr]) {
+      targets.push({ dateStr, dow });
+    }
+  }
+
+  if (targets.length === 0) {
+    alert('登録対象の平日がありません（全て登録済みか祝日です）');
+    return;
+  }
+
+  const startTime = document.getElementById('default-start-time').value;
+  const endTime   = document.getElementById('default-end-time').value;
+  const dep       = document.getElementById('default-departure-station').value.trim();
+  const via       = document.getElementById('default-via-station').value.trim();
+  const arr       = document.getElementById('default-arrival-station').value.trim();
+  const costRaw   = document.getElementById('default-transport-cost').value;
+
+  const defWorkLocs = Array.from(document.querySelectorAll('input[name="default-work-location"]:checked'))
+    .map(cb => cb.value);
+  const defWorkDesc = document.getElementById('default-work-description').value.trim();
+
+  const settingRows = [];
+  if (startTime)            settingRows.push(`<tr><th>出勤時刻</th><td>${startTime}</td></tr>`);
+  if (endTime)              settingRows.push(`<tr><th>退勤時刻</th><td>${endTime}</td></tr>`);
+  if (defWorkLocs.length)   settingRows.push(`<tr><th>勤務地</th><td>${defWorkLocs.join('、')}</td></tr>`);
+  if (defWorkDesc)          settingRows.push(`<tr><th>業務内容</th><td>${defWorkDesc}</td></tr>`);
+  if (dep)                  settingRows.push(`<tr><th>出発駅</th><td>${dep}</td></tr>`);
+  if (via)                  settingRows.push(`<tr><th>経由駅</th><td>${via}</td></tr>`);
+  if (arr)                  settingRows.push(`<tr><th>到着駅</th><td>${arr}</td></tr>`);
+  if (costRaw)              settingRows.push(`<tr><th>交通費</th><td>¥${parseInt(costRaw, 10).toLocaleString()}</td></tr>`);
+
+  const dateLabels = targets
+    .map(t => `${parseInt(t.dateStr.split('-')[2])}日(${DOW_LABELS[t.dow]})`)
+    .join('、');
+
+  const settingsHtml = settingRows.length > 0
+    ? `<div class="bulk-defaults-section">
+        <div class="bulk-defaults-label">デフォルト設定</div>
+        <table class="confirm-table"><tbody>${settingRows.join('')}</tbody></table>
+       </div>`
+    : `<p class="bulk-no-defaults">※ デフォルト設定なし（時刻・交通情報は空欄で登録されます）</p>`;
+
+  showGenericConfirm({
+    title: '平日一括出勤登録',
+    okLabel: '一括登録する',
+    okClass: 'btn-bulk-ok',
+    body: `<div class="bulk-confirm-body">
+      <p class="bulk-target-summary">
+        <strong>${currentYear}年${currentMonth}月</strong> の未登録の平日
+        <em>${targets.length}日</em> に出勤を登録します
+      </p>
+      <div class="bulk-target-dates">${dateLabels}</div>
+      ${settingsHtml}
+      <p class="bulk-note">祝日・登録済みの日はスキップします</p>
+    </div>`,
+    onOk: () => executeBulkRegister(targets.map(t => t.dateStr)),
+  });
+}
+
+async function executeBulkRegister(datelist) {
+  const start_time        = document.getElementById('default-start-time').value || null;
+  const end_time          = document.getElementById('default-end-time').value || null;
+  const departure_station = document.getElementById('default-departure-station').value.trim() || null;
+  const viaVal            = document.getElementById('default-via-station').value.trim();
+  const arrival_station   = document.getElementById('default-arrival-station').value.trim() || null;
+  const costRaw           = document.getElementById('default-transport-cost').value;
+  const transport_cost    = costRaw !== '' ? parseInt(costRaw, 10) : null;
+  const via_station       = viaVal ? [viaVal] : null;
+  const workLocList       = Array.from(document.querySelectorAll('input[name="default-work-location"]:checked'))
+    .map(cb => cb.value);
+  const work_location     = workLocList.length ? workLocList : null;
+  const work_description  = document.getElementById('default-work-description').value.trim() || null;
+
+  const results = await Promise.allSettled(
+    datelist.map(date =>
+      fetch('/api/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date, type: 'PRESENT',
+          start_time, end_time,
+          work_location, work_description,
+          departure_station, via_station, arrival_station, transport_cost,
+        }),
+      }).then(async res => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+    )
+  );
+
+  let successCount = 0;
+  results.forEach(r => {
+    if (r.status === 'fulfilled') {
+      attendanceMap[r.value.date] = r.value;
+      successCount++;
+    }
+  });
+  updateCalendarCells();
+
+  const failCount = datelist.length - successCount;
+  if (failCount > 0) {
+    alert(`${successCount}件を登録しました。${failCount}件は登録できませんでした。`);
   }
 }
 
