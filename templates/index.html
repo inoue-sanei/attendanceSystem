@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>勤怠管理</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <header>
+    <h1>勤怠管理</h1>
+  </header>
+
+  <main>
+    <div class="calendar-nav">
+      <button id="prev-month" aria-label="前月">&#8249;</button>
+      <h2 id="current-month"></h2>
+      <button id="next-month" aria-label="翌月">&#8250;</button>
+    </div>
+
+    <!-- 確定済みバナー -->
+    <div id="confirmed-banner" class="confirmed-banner hidden">
+      <span class="confirmed-icon">✓</span>
+      <span id="confirmed-banner-text"></span>は確定済みです。勤怠情報の変更はできません。
+    </div>
+
+    <!-- デフォルト時刻バー -->
+    <div class="time-defaults-bar">
+      <span class="time-defaults-label">デフォルト時刻</span>
+      <label class="time-default-field">
+        <span>出勤</span>
+        <input type="time" id="default-start-time">
+      </label>
+      <label class="time-default-field">
+        <span>退勤</span>
+        <input type="time" id="default-end-time">
+      </label>
+      <span class="time-defaults-hint">※ 出勤登録時の初期値として使用</span>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-badge" style="background:#4CAF50"></div>出勤</div>
+      <div class="legend-item"><div class="legend-badge" style="background:#f44336"></div>欠勤</div>
+      <div class="legend-item"><div class="legend-badge" style="background:#f44336;outline:2px solid #1976D2"></div>欠勤（有給）</div>
+      <div class="legend-item"><div class="legend-badge" style="background:#FF9800"></div>遅刻</div>
+      <div class="legend-item"><div class="legend-badge" style="background:#FFC107"></div>早退</div>
+    </div>
+
+    <div class="calendar-grid" id="calendar-grid">
+      <div class="day-header sunday">日</div>
+      <div class="day-header">月</div>
+      <div class="day-header">火</div>
+      <div class="day-header">水</div>
+      <div class="day-header">木</div>
+      <div class="day-header">金</div>
+      <div class="day-header saturday">土</div>
+    </div>
+  </main>
+
+  <!-- 確定ボタン（画面右下固定） -->
+  <button id="confirm-month-btn" class="btn-confirm-month" aria-label="この月を確定する">
+    この月を確定する
+  </button>
+
+  <!-- 勤怠登録モーダル -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-date-label">
+    <div class="modal-overlay" id="modal-overlay"></div>
+    <div class="modal-content">
+      <h3 id="modal-date-label"></h3>
+
+      <!-- スクロール対象エリア -->
+      <div class="modal-body">
+
+        <div class="form-group">
+          <label for="type-select">区分</label>
+          <select id="type-select">
+            <option value="PRESENT">出勤</option>
+            <option value="ABSENT">欠勤</option>
+            <option value="LATE">遅刻</option>
+            <option value="EARLY_LEAVE">早退</option>
+          </select>
+        </div>
+
+        <!-- 欠勤のみ -->
+        <div id="paid-leave-field" class="form-group" style="display:none">
+          <label class="checkbox-label">
+            <input type="checkbox" id="paid-leave">有給消化
+          </label>
+        </div>
+
+        <!-- 遅刻・早退のみ -->
+        <div id="half-paid-leave-field" class="form-group" style="display:none">
+          <label class="checkbox-label checkbox-label--orange">
+            <input type="checkbox" id="half-paid-leave">有給（半休）消化
+          </label>
+        </div>
+
+        <!-- 欠勤・遅刻・早退のみ（必須） -->
+        <div id="reason-field" class="form-group" style="display:none">
+          <label for="reason">理由 <span class="required">*</span></label>
+          <textarea id="reason" placeholder="理由を入力してください..."></textarea>
+        </div>
+
+        <!-- 出勤・遅刻・早退のみ -->
+        <div id="time-fields">
+          <div class="form-group">
+            <label for="start-time">出勤時刻 <span class="required">*</span></label>
+            <input type="time" id="start-time">
+          </div>
+          <div class="form-group">
+            <label for="end-time">退勤時刻 <span class="required">*</span></label>
+            <input type="time" id="end-time">
+          </div>
+        </div>
+
+        <!-- 出勤・遅刻・早退のみ -->
+        <div id="work-location-field" class="form-group" style="display:none">
+          <label>勤務地（複数選択可）</label>
+          <div class="check-group">
+            <label class="check-item"><input type="checkbox" name="work-location" value="現場"> 現場</label>
+            <label class="check-item"><input type="checkbox" name="work-location" value="在宅"> 在宅</label>
+            <label class="check-item"><input type="checkbox" name="work-location" value="自社"> 自社</label>
+            <label class="check-item"><input type="checkbox" name="work-location" value="その他"> その他</label>
+          </div>
+        </div>
+
+        <!-- 交通情報（出勤・遅刻・早退のみ） -->
+        <div id="transit-fields" style="display:none">
+          <div class="form-section-label">交通情報</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="departure-station">出発駅</label>
+              <input type="text" id="departure-station" placeholder="例：新宿">
+            </div>
+            <div class="form-group">
+              <label for="arrival-station">到着駅</label>
+              <input type="text" id="arrival-station" placeholder="例：品川">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>経由駅</label>
+            <div id="via-station-list"></div>
+            <button type="button" id="add-via-btn" class="btn-add-via">＋ 経由駅を追加</button>
+          </div>
+          <div class="form-group">
+            <label for="transport-cost">交通費（円）</label>
+            <input type="number" id="transport-cost" min="0" step="1" placeholder="0">
+          </div>
+        </div>
+
+        <!-- 出勤・遅刻・早退のみ -->
+        <div id="work-description-field" class="form-group" style="display:none">
+          <label for="work-description">業務内容 <span class="required">*</span></label>
+          <textarea id="work-description" placeholder="業務内容を入力してください..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="note">メモ</label>
+          <textarea id="note" placeholder="備考を入力..."></textarea>
+        </div>
+
+      </div><!-- /.modal-body -->
+
+      <div class="modal-actions">
+        <button id="delete-btn" class="btn btn-danger">削除</button>
+        <button id="cancel-btn" class="btn btn-secondary">キャンセル</button>
+        <button id="save-btn" class="btn btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 保存確認モーダル -->
+  <div id="confirm-modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-overlay" id="confirm-overlay"></div>
+    <div class="modal-content confirm-content">
+      <h3 id="confirm-modal-title">保存の確認</h3>
+      <div id="confirm-body"></div>
+      <div class="modal-actions">
+        <button id="confirm-cancel-btn" class="btn btn-secondary">キャンセル</button>
+        <button id="confirm-ok-btn" class="btn btn-primary">保存する</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/calendar.js"></script>
+</body>
+</html>
