@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>日次勤怠登録</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <header>
+    <h1>勤怠管理</h1>
+    <div class="header-user">
+      <span id="header-username" class="header-username"></span>
+      <button id="logout-btn" class="btn-logout" type="button">ログアウト</button>
+    </div>
+  </header>
+
+  <main class="daily-main">
+    <div class="daily-date" id="daily-date"></div>
+
+    <!-- ローディング -->
+    <div id="state-loading" class="daily-state daily-card">
+      <p class="daily-loading-text">読み込み中...</p>
+    </div>
+
+    <!-- 出勤フォーム（未登録） -->
+    <div id="state-none" class="daily-state daily-card hidden">
+      <div class="daily-status-badge">未出勤</div>
+      <form id="checkin-form" novalidate>
+
+        <div class="form-group">
+          <label for="ci-type">区分</label>
+          <select id="ci-type">
+            <option value="PRESENT">出勤</option>
+            <option value="ABSENT">欠勤</option>
+            <option value="LATE">遅刻</option>
+            <option value="EARLY_LEAVE">早退</option>
+          </select>
+        </div>
+
+        <div id="ci-paid-leave-field" class="form-group" style="display:none">
+          <label class="checkbox-label">
+            <input type="checkbox" id="ci-paid-leave">有給消化
+          </label>
+        </div>
+
+        <div id="ci-half-paid-field" class="form-group" style="display:none">
+          <label class="checkbox-label checkbox-label--orange">
+            <input type="checkbox" id="ci-half-paid">有給（半休）消化
+          </label>
+        </div>
+
+        <div id="ci-reason-field" class="form-group" style="display:none">
+          <label for="ci-reason">理由 <span class="required">*</span></label>
+          <textarea id="ci-reason" placeholder="理由を入力してください..."></textarea>
+        </div>
+
+        <div id="ci-time-fields" class="daily-time-fields">
+          <div class="form-group">
+            <label for="ci-start">出勤時刻 <span class="required">*</span></label>
+            <input type="time" id="ci-start" class="daily-time-input" required>
+          </div>
+          <div class="form-group">
+            <label for="ci-end">退勤時刻</label>
+            <input type="time" id="ci-end" class="daily-time-input">
+          </div>
+        </div>
+
+        <div id="ci-work-fields">
+          <div class="form-group">
+            <label>勤務地</label>
+            <div class="check-group">
+              <label class="check-item"><input type="checkbox" name="ci-loc" value="現場"> 現場</label>
+              <label class="check-item"><input type="checkbox" name="ci-loc" value="在宅"> 在宅</label>
+              <label class="check-item"><input type="checkbox" name="ci-loc" value="自社"> 自社</label>
+              <label class="check-item"><input type="checkbox" name="ci-loc" value="その他"> その他</label>
+            </div>
+          </div>
+
+          <div class="form-section-label">交通情報</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="ci-dep">出発駅</label>
+              <input type="text" id="ci-dep" placeholder="例：新宿">
+            </div>
+            <div class="form-group">
+              <label for="ci-arr">到着駅</label>
+              <input type="text" id="ci-arr" placeholder="例：品川">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>経由駅</label>
+            <div id="ci-via-list"></div>
+            <button type="button" id="ci-add-via" class="btn-add-via">＋ 経由駅を追加</button>
+          </div>
+          <div class="form-group">
+            <label for="ci-cost">交通費（円）</label>
+            <input type="number" id="ci-cost" min="0" step="1" placeholder="0">
+          </div>
+
+          <div class="form-group">
+            <label for="ci-desc">業務内容 <span class="required">*</span></label>
+            <textarea id="ci-desc" placeholder="業務内容を入力してください..."></textarea>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="ci-note">メモ</label>
+          <textarea id="ci-note" placeholder="備考を入力..."></textarea>
+        </div>
+
+        <div id="daily-error-ci" class="daily-error hidden"></div>
+        <button type="submit" id="ci-submit-btn" class="btn-daily btn-checkin">出勤する</button>
+      </form>
+    </div>
+
+    <!-- 退勤フォーム（出勤中） -->
+    <div id="state-in" class="daily-state daily-card hidden">
+      <div class="daily-status-badge daily-status-badge--in">出勤中</div>
+      <div class="daily-checkin-info" id="checkin-info"></div>
+      <form id="checkout-form" novalidate>
+
+        <div class="form-group">
+          <label for="co-end">退勤時刻 <span class="required">*</span></label>
+          <input type="time" id="co-end" class="daily-time-input" required>
+        </div>
+
+        <div class="form-group">
+          <label for="co-type">区分</label>
+          <select id="co-type">
+            <option value="PRESENT">出勤</option>
+            <option value="ABSENT">欠勤</option>
+            <option value="LATE">遅刻</option>
+            <option value="EARLY_LEAVE">早退</option>
+          </select>
+        </div>
+
+        <div id="co-paid-leave-field" class="form-group" style="display:none">
+          <label class="checkbox-label">
+            <input type="checkbox" id="co-paid-leave">有給消化
+          </label>
+        </div>
+
+        <div id="co-half-paid-field" class="form-group" style="display:none">
+          <label class="checkbox-label checkbox-label--orange">
+            <input type="checkbox" id="co-half-paid">有給（半休）消化
+          </label>
+        </div>
+
+        <div id="co-reason-field" class="form-group" style="display:none">
+          <label for="co-reason">理由</label>
+          <textarea id="co-reason" placeholder="理由を入力してください..."></textarea>
+        </div>
+
+        <div id="co-time-fields" class="daily-time-fields">
+          <div class="form-group">
+            <label for="co-start">出勤時刻</label>
+            <input type="time" id="co-start" class="daily-time-input">
+          </div>
+        </div>
+
+        <div id="co-work-fields">
+          <div class="form-group">
+            <label>勤務地</label>
+            <div class="check-group">
+              <label class="check-item"><input type="checkbox" name="co-loc" value="現場"> 現場</label>
+              <label class="check-item"><input type="checkbox" name="co-loc" value="在宅"> 在宅</label>
+              <label class="check-item"><input type="checkbox" name="co-loc" value="自社"> 自社</label>
+              <label class="check-item"><input type="checkbox" name="co-loc" value="その他"> その他</label>
+            </div>
+          </div>
+
+          <div class="form-section-label">交通情報</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="co-dep">出発駅</label>
+              <input type="text" id="co-dep" placeholder="例：新宿">
+            </div>
+            <div class="form-group">
+              <label for="co-arr">到着駅</label>
+              <input type="text" id="co-arr" placeholder="例：品川">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>経由駅</label>
+            <div id="co-via-list"></div>
+            <button type="button" id="co-add-via" class="btn-add-via">＋ 経由駅を追加</button>
+          </div>
+          <div class="form-group">
+            <label for="co-cost">交通費（円）</label>
+            <input type="number" id="co-cost" min="0" step="1" placeholder="0">
+          </div>
+
+          <div class="form-group">
+            <label for="co-desc">業務内容</label>
+            <textarea id="co-desc" placeholder="業務内容を入力してください..."></textarea>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="co-note">メモ</label>
+          <textarea id="co-note" placeholder="備考を入力..."></textarea>
+        </div>
+
+        <div id="daily-error-co" class="daily-error hidden"></div>
+        <button type="submit" id="co-submit-btn" class="btn-daily btn-checkout">退勤する</button>
+      </form>
+    </div>
+
+    <!-- 退勤済み -->
+    <div id="state-done" class="daily-state daily-card hidden">
+      <div class="daily-status-badge daily-status-badge--done">退勤済み</div>
+      <div class="daily-summary" id="daily-summary"></div>
+      <p class="daily-done-note">本日もお疲れ様でした</p>
+    </div>
+
+    <!-- 欠勤・遅刻・早退（カレンダーから登録） -->
+    <div id="state-other" class="daily-state daily-card hidden">
+      <div class="daily-status-badge daily-status-badge--other" id="other-badge"></div>
+      <p class="daily-other-note">カレンダーから登録された勤怠です</p>
+    </div>
+
+  </main>
+
+  <nav class="bottom-nav">
+    <a href="/daily" class="bottom-nav-item bottom-nav-item--active">日次登録</a>
+    <a href="/" class="bottom-nav-item">カレンダー</a>
+    <a href="/mypage" class="bottom-nav-item">マイページ</a>
+  </nav>
+
+  <script src="/static/js/daily.js"></script>
+</body>
+</html>

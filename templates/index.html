@@ -9,6 +9,10 @@
 <body>
   <header>
     <h1>勤怠管理</h1>
+    <div class="header-user">
+      <span id="header-username" class="header-username"></span>
+      <button id="logout-btn" class="btn-logout" type="button">ログアウト</button>
+    </div>
   </header>
 
   <main>
@@ -20,6 +24,7 @@
         <button id="next-month" aria-label="翌月">&#8250;</button>
       </div>
       <div class="nav-actions">
+        <button id="bulk-delete-btn" class="btn-bulk-delete">一括削除</button>
         <button id="bulk-register-btn" class="btn-bulk-register">平日一括入力</button>
       </div>
     </div>
@@ -28,55 +33,6 @@
     <div id="confirmed-banner" class="confirmed-banner hidden">
       <span class="confirmed-icon">✓</span>
       <span id="confirmed-banner-text"></span>は確定済みです。勤怠情報の変更はできません。
-    </div>
-
-    <!-- デフォルト設定カード -->
-    <div class="defaults-card">
-      <div class="defaults-row">
-        <span class="defaults-row-label">時刻</span>
-        <label class="default-field">
-          <span>出勤</span>
-          <input type="time" id="default-start-time">
-        </label>
-        <label class="default-field">
-          <span>退勤</span>
-          <input type="time" id="default-end-time">
-        </label>
-        <span class="defaults-hint">※ 出勤登録時の初期値として使用</span>
-      </div>
-      <div class="defaults-row">
-        <span class="defaults-row-label">交通</span>
-        <label class="default-field">
-          <span>出発駅</span>
-          <input type="text" id="default-departure-station" placeholder="新宿">
-        </label>
-        <label class="default-field">
-          <span>経由駅</span>
-          <input type="text" id="default-via-station" placeholder="渋谷">
-        </label>
-        <label class="default-field">
-          <span>到着駅</span>
-          <input type="text" id="default-arrival-station" placeholder="品川">
-        </label>
-        <label class="default-field">
-          <span>交通費</span>
-          <input type="number" id="default-transport-cost" min="0" step="1" placeholder="0">
-          <span class="unit">円</span>
-        </label>
-      </div>
-      <div class="defaults-row">
-        <span class="defaults-row-label">勤務</span>
-        <div class="default-check-group">
-          <label class="default-check-item"><input type="checkbox" name="default-work-location" value="現場"> 現場</label>
-          <label class="default-check-item"><input type="checkbox" name="default-work-location" value="在宅"> 在宅</label>
-          <label class="default-check-item"><input type="checkbox" name="default-work-location" value="自社"> 自社</label>
-          <label class="default-check-item"><input type="checkbox" name="default-work-location" value="その他"> その他</label>
-        </div>
-        <label class="default-field">
-          <span>業務内容</span>
-          <input type="text" id="default-work-description" placeholder="例：開発作業">
-        </label>
-      </div>
     </div>
 
     <div class="legend">
@@ -210,6 +166,30 @@
     </div>
   </div>
 
+  <!-- 一括削除モーダル -->
+  <div id="bulk-delete-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="bulk-delete-title">
+    <div class="modal-overlay" id="bulk-delete-overlay"></div>
+    <div class="modal-content">
+      <h3 id="bulk-delete-title">一括削除</h3>
+      <div class="modal-body bulk-delete-modal-body">
+        <div class="bulk-delete-select-all-row">
+          <label class="bulk-select-all-label">
+            <input type="checkbox" id="bulk-delete-select-all">
+            <span>全選択</span>
+          </label>
+          <span class="bulk-delete-count" id="bulk-delete-count">0件選択中</span>
+        </div>
+        <div id="bulk-delete-list" class="bulk-delete-list">
+          <!-- JS で埋める -->
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="bulk-delete-cancel-btn" class="btn btn-secondary">キャンセル</button>
+        <button id="bulk-delete-ok-btn" class="btn btn-danger" disabled>削除する</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 保存確認モーダル -->
   <div id="confirm-modal" class="modal hidden" role="dialog" aria-modal="true">
     <div class="modal-overlay" id="confirm-overlay"></div>
@@ -222,6 +202,12 @@
       </div>
     </div>
   </div>
+
+  <nav class="bottom-nav">
+    <a href="/daily" class="bottom-nav-item">日次登録</a>
+    <a href="/" class="bottom-nav-item bottom-nav-item--active">カレンダー</a>
+    <a href="/mypage" class="bottom-nav-item">マイページ</a>
+  </nav>
 
   <script src="/static/js/calendar.js"></script>
 </body>

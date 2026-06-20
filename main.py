@@ -5,7 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from sqlalchemy import inspect, text
 from database import Base, engine
 from exceptions import AttendanceAlreadyExistsError, AttendanceNotFoundError, MonthAlreadyConfirmedError
-from routers import attendance, pages, confirmation, holidays
+from routers import attendance, pages, confirmation, holidays, auth, board
 
 # テーブル作成（初回起動時）
 Base.metadata.create_all(bind=engine)
@@ -33,15 +33,39 @@ def _migrate() -> None:
                     conn.execute(text(sql))
             conn.commit()
 
+        # users テーブルへの追加カラム
+        if inspector.has_table("users"):
+            user_cols = {c["name"] for c in inspector.get_columns("users")}
+            if "paid_leave_days" not in user_cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN paid_leave_days INTEGER NOT NULL DEFAULT 20"))
+                conn.commit()
+            if "paid_leave_month" not in user_cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN paid_leave_month INTEGER NOT NULL DEFAULT 4"))
+                conn.commit()
+
+        # bulletin_threads / bulletin_comments への updated_at 追加
+        if inspector.has_table("bulletin_threads"):
+            t_cols = {c["name"] for c in inspector.get_columns("bulletin_threads")}
+            if "updated_at" not in t_cols:
+                conn.execute(text("ALTER TABLE bulletin_threads ADD COLUMN updated_at DATETIME"))
+                conn.commit()
+        if inspector.has_table("bulletin_comments"):
+            c_cols = {c["name"] for c in inspector.get_columns("bulletin_comments")}
+            if "updated_at" not in c_cols:
+                conn.execute(text("ALTER TABLE bulletin_comments ADD COLUMN updated_at DATETIME"))
+                conn.commit()
+
 
 _migrate()
 
 app = FastAPI(title="勤怠管理API", docs_url="/docs")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+app.include_router(auth.router)
 app.include_router(attendance.router)
 app.include_router(confirmation.router)
 app.include_router(holidays.router)
+app.include_router(board.router)
 app.include_router(pages.router)
 
 

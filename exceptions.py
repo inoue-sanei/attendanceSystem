@@ -8,3 +8,16 @@ class AttendanceNotFoundError(Exception):
 
 class MonthAlreadyConfirmedError(Exception):
     """月次確定済みのため変更不可"""
+
+
+class InvalidCredentialsError(Exception):
+    """ユーザー名またはパスワードが正しくない"""
+
+
+class UserAlreadyExistsError(Exception):
+    """ユーザーが既に存在する"""
+
+
+class InvalidTokenError(Exception):
+    """無効なトークン"""
+

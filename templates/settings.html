@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>設定 - 勤怠管理</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <header>
+    <h1>勤怠管理</h1>
+    <div class="header-user">
+      <span id="header-username" class="header-username"></span>
+      <button id="logout-btn" class="btn-logout" type="button">ログアウト</button>
+    </div>
+  </header>
+
+  <main class="settings-main">
+    <a href="/mypage" class="back-link">&#8592; マイページに戻る</a>
+    <h2 class="page-title">デフォルト情報設定</h2>
+    <p class="page-subtitle">日次勤怠登録時に自動入力される初期値を設定します</p>
+
+    <div id="settings-msg" class="settings-msg hidden"></div>
+
+    <form id="settings-form" novalidate>
+
+      <section class="settings-section">
+        <h3 class="settings-section-title">時刻</h3>
+        <div class="settings-row">
+          <div class="form-group">
+            <label for="s-start-time">出勤時刻</label>
+            <input type="time" id="s-start-time">
+          </div>
+          <div class="form-group">
+            <label for="s-end-time">退勤時刻</label>
+            <input type="time" id="s-end-time">
+          </div>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3 class="settings-section-title">交通情報</h3>
+        <div class="settings-row">
+          <div class="form-group">
+            <label for="s-dep">出発駅</label>
+            <input type="text" id="s-dep" placeholder="例：新宿">
+          </div>
+          <div class="form-group">
+            <label for="s-arr">到着駅</label>
+            <input type="text" id="s-arr" placeholder="例：品川">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>経由駅</label>
+          <div id="s-via-list"></div>
+          <button type="button" id="s-add-via" class="btn-add-via">＋ 経由駅を追加</button>
+        </div>
+        <div class="form-group">
+          <label for="s-cost">交通費（円）</label>
+          <input type="number" id="s-cost" min="0" step="1" placeholder="0">
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3 class="settings-section-title">勤務情報</h3>
+        <div class="form-group">
+          <label>勤務地</label>
+          <div class="check-group">
+            <label class="check-item"><input type="checkbox" name="s-loc" value="現場"> 現場</label>
+            <label class="check-item"><input type="checkbox" name="s-loc" value="在宅"> 在宅</label>
+            <label class="check-item"><input type="checkbox" name="s-loc" value="自社"> 自社</label>
+            <label class="check-item"><input type="checkbox" name="s-loc" value="その他"> その他</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="s-desc">業務内容</label>
+          <input type="text" id="s-desc" placeholder="例：開発作業">
+        </div>
+      </section>
+
+      <button type="submit" class="btn btn-primary btn-full">保存する</button>
+
+    </form>
+  </main>
+
+  <nav class="bottom-nav">
+    <a href="/daily" class="bottom-nav-item">日次登録</a>
+    <a href="/" class="bottom-nav-item">カレンダー</a>
+    <a href="/mypage" class="bottom-nav-item bottom-nav-item--active">マイページ</a>
+  </nav>
+
+  <script src="/static/js/settings.js"></script>
+</body>
+</html>

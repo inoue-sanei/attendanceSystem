@@ -1,5 +1,11 @@
 'use strict';
 
+const DEFAULTS_KEY = 'attendanceDefaults';
+function getDefaults() {
+  try { return JSON.parse(localStorage.getItem(DEFAULTS_KEY)) || {}; }
+  catch { return {}; }
+}
+
 const TYPE_LABELS = {
   PRESENT:     '出勤',
   ABSENT:      '欠勤',
@@ -19,6 +25,40 @@ function toTimeInput(timeStr) {
   return timeStr.substring(0, 5);
 }
 
+// ────────────────────────────────
+//  認証
+// ────────────────────────────────
+function getToken() {
+  return localStorage.getItem('authToken');
+}
+
+function logout() {
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('username');
+  location.href = '/login';
+}
+
+// 認証ヘッダー付き fetch。401 はログアウト処理へ
+async function authFetch(url, options = {}) {
+  const token = getToken();
+  if (!token) {
+    logout();
+    return Promise.reject(new Error('未認証'));
+  }
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  if (res.status === 401) {
+    logout();
+    return Promise.reject(new Error('認証エラー'));
+  }
+  return res;
+}
+
 let currentYear  = new Date().getFullYear();
 let currentMonth = new Date().getMonth() + 1;
 let attendanceMap = {};
@@ -31,6 +71,20 @@ let isConfirmed  = false;
 //  初期化
 // ────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  // 未認証ならログインページへ
+  if (!getToken()) {
+    location.href = '/login';
+    return;
+  }
+
+  // ユーザー名をヘッダーに表示
+  const username = localStorage.getItem('username');
+  if (username) {
+    document.getElementById('header-username').textContent = username;
+  }
+
+  document.getElementById('logout-btn').addEventListener('click', logout);
+
   renderCalendar();
   fetchMonthData();
   initViaStations();
@@ -62,6 +116,14 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('delete-btn').addEventListener('click', deleteAttendance);
   document.getElementById('confirm-month-btn').addEventListener('click', onConfirmMonthClick);
   document.getElementById('bulk-register-btn').addEventListener('click', onBulkRegisterClick);
+  document.getElementById('bulk-delete-btn').addEventListener('click', onBulkDeleteClick);
+  document.getElementById('bulk-delete-cancel-btn').addEventListener('click', closeBulkDeleteModal);
+  document.getElementById('bulk-delete-overlay').addEventListener('click', closeBulkDeleteModal);
+  document.getElementById('bulk-delete-select-all').addEventListener('change', e => {
+    document.querySelectorAll('.bulk-delete-check').forEach(cb => { cb.checked = e.target.checked; });
+    updateBulkDeleteCount();
+  });
+  document.getElementById('bulk-delete-ok-btn').addEventListener('click', onBulkDeleteOkClick);
 });
 
 // ────────────────────────────────
@@ -128,7 +190,7 @@ async function fetchMonthData() {
 
 async function fetchAttendance() {
   try {
-    const res = await fetch(`/api/attendance?year=${currentYear}&month=${currentMonth}`);
+    const res = await authFetch(`/api/attendance?year=${currentYear}&month=${currentMonth}`);
     if (!res.ok) throw new Error();
     const records = await res.json();
     attendanceMap = {};
@@ -139,7 +201,7 @@ async function fetchAttendance() {
 
 async function fetchHolidays() {
   try {
-    const res = await fetch(`/api/holidays?year=${currentYear}&month=${currentMonth}`);
+    const res = await authFetch(`/api/holidays?year=${currentYear}&month=${currentMonth}`);
     if (!res.ok) throw new Error();
     const list = await res.json();
     holidayMap = {};
@@ -152,7 +214,7 @@ async function fetchHolidays() {
 
 async function fetchConfirmationStatus() {
   try {
-    const res = await fetch(`/api/confirmation?year=${currentYear}&month=${currentMonth}`);
+    const res = await authFetch(`/api/confirmation?year=${currentYear}&month=${currentMonth}`);
     if (!res.ok) throw new Error();
     const data = await res.json();
     isConfirmed = data.confirmed;
@@ -261,10 +323,11 @@ function _badgeLabel(record) {
 }
 
 function updateConfirmationUI() {
-  const banner    = document.getElementById('confirmed-banner');
-  const confirmBtn = document.getElementById('confirm-month-btn');
-  const bulkBtn   = document.getElementById('bulk-register-btn');
-  const grid      = document.getElementById('calendar-grid');
+  const banner       = document.getElementById('confirmed-banner');
+  const confirmBtn   = document.getElementById('confirm-month-btn');
+  const bulkBtn      = document.getElementById('bulk-register-btn');
+  const bulkDelBtn   = document.getElementById('bulk-delete-btn');
+  const grid         = document.getElementById('calendar-grid');
 
   if (isConfirmed) {
     document.getElementById('confirmed-banner-text').textContent =
@@ -272,11 +335,13 @@ function updateConfirmationUI() {
     banner.classList.remove('hidden');
     confirmBtn.classList.add('hidden');
     bulkBtn.classList.add('hidden');
+    bulkDelBtn.classList.add('hidden');
     grid.classList.add('confirmed');
   } else {
     banner.classList.add('hidden');
     confirmBtn.classList.remove('hidden');
     bulkBtn.classList.remove('hidden');
+    bulkDelBtn.classList.remove('hidden');
     grid.classList.remove('confirmed');
   }
 }
@@ -312,32 +377,26 @@ function openModal(dateStr) {
     setViaStations(record.via_station);
     document.getElementById('delete-btn').style.display = 'inline-block';
   } else {
+    const _d = getDefaults();
     document.getElementById('type-select').value           = 'PRESENT';
-    document.getElementById('start-time').value            = document.getElementById('default-start-time').value;
-    document.getElementById('end-time').value              = document.getElementById('default-end-time').value;
+    document.getElementById('start-time').value            = _d.start_time || '';
+    document.getElementById('end-time').value              = _d.end_time || '';
     document.getElementById('note').value                  = '';
     document.getElementById('paid-leave').checked          = false;
     document.getElementById('half-paid-leave').checked     = false;
-    document.getElementById('work-description').value      = '';
+    document.getElementById('work-description').value      = _d.work_description || '';
     document.getElementById('reason').value                = '';
-    // デフォルト交通情報を適用
-    document.getElementById('departure-station').value     = document.getElementById('default-departure-station').value;
-    document.getElementById('arrival-station').value       = document.getElementById('default-arrival-station').value;
-    document.getElementById('transport-cost').value        = document.getElementById('default-transport-cost').value;
-    const _defVia = document.getElementById('default-via-station').value.trim();
-    setViaStations(_defVia ? [_defVia] : []);
-    // デフォルト勤務地・業務内容を適用
-    const _defLocs = Array.from(document.querySelectorAll('input[name="default-work-location"]:checked'))
-      .map(cb => cb.value);
+    document.getElementById('departure-station').value     = _d.departure_station || '';
+    document.getElementById('arrival-station').value       = _d.arrival_station || '';
+    document.getElementById('transport-cost').value        = _d.transport_cost != null ? _d.transport_cost : '';
+    setViaStations(_d.via_stations && _d.via_stations.length > 0 ? _d.via_stations : []);
+    const _defLocs = _d.work_locations || [];
     document.querySelectorAll('input[name="work-location"]').forEach(cb => {
       cb.checked = _defLocs.includes(cb.value);
     });
-    document.getElementById('work-description').value =
-      document.getElementById('default-work-description').value;
     document.getElementById('delete-btn').style.display = 'none';
   }
 
-  // スクロール位置をリセット
   document.querySelector('.modal-body').scrollTop = 0;
   toggleTypeFields();
   document.getElementById('modal').classList.remove('hidden');
@@ -474,7 +533,7 @@ async function saveAttendance() {
   const method = editingId ? 'PUT' : 'POST';
 
   try {
-    const res = await fetch(url, {
+    const res = await authFetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -504,7 +563,7 @@ async function deleteAttendance() {
   if (!confirm('この勤怠記録を削除しますか？')) return;
 
   try {
-    const res = await fetch(`/api/attendance/${editingId}`, { method: 'DELETE' });
+    const res = await authFetch(`/api/attendance/${editingId}`, { method: 'DELETE' });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       alert(err.message || '削除に失敗しました');
@@ -529,7 +588,6 @@ function onBulkRegisterClick() {
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${currentYear}-${String(currentMonth).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     const dow = new Date(currentYear, currentMonth - 1, day).getDay();
-    // 平日 かつ 未登録 かつ 祝日でない
     if (dow !== 0 && dow !== 6 && !attendanceMap[dateStr] && !holidayMap[dateStr]) {
       targets.push({ dateStr, dow });
     }
@@ -540,16 +598,15 @@ function onBulkRegisterClick() {
     return;
   }
 
-  const startTime = document.getElementById('default-start-time').value;
-  const endTime   = document.getElementById('default-end-time').value;
-  const dep       = document.getElementById('default-departure-station').value.trim();
-  const via       = document.getElementById('default-via-station').value.trim();
-  const arr       = document.getElementById('default-arrival-station').value.trim();
-  const costRaw   = document.getElementById('default-transport-cost').value;
-
-  const defWorkLocs = Array.from(document.querySelectorAll('input[name="default-work-location"]:checked'))
-    .map(cb => cb.value);
-  const defWorkDesc = document.getElementById('default-work-description').value.trim();
+  const _bd = getDefaults();
+  const startTime   = _bd.start_time || '';
+  const endTime     = _bd.end_time || '';
+  const dep         = _bd.departure_station || '';
+  const viaArr      = _bd.via_stations || [];
+  const arr         = _bd.arrival_station || '';
+  const costRaw     = _bd.transport_cost != null ? String(_bd.transport_cost) : '';
+  const defWorkLocs = _bd.work_locations || [];
+  const defWorkDesc = _bd.work_description || '';
 
   const settingRows = [];
   if (startTime)            settingRows.push(`<tr><th>出勤時刻</th><td>${startTime}</td></tr>`);
@@ -557,7 +614,7 @@ function onBulkRegisterClick() {
   if (defWorkLocs.length)   settingRows.push(`<tr><th>勤務地</th><td>${defWorkLocs.join('、')}</td></tr>`);
   if (defWorkDesc)          settingRows.push(`<tr><th>業務内容</th><td>${defWorkDesc}</td></tr>`);
   if (dep)                  settingRows.push(`<tr><th>出発駅</th><td>${dep}</td></tr>`);
-  if (via)                  settingRows.push(`<tr><th>経由駅</th><td>${via}</td></tr>`);
+  if (viaArr.length)        settingRows.push(`<tr><th>経由駅</th><td>${viaArr.join(' → ')}</td></tr>`);
   if (arr)                  settingRows.push(`<tr><th>到着駅</th><td>${arr}</td></tr>`);
   if (costRaw)              settingRows.push(`<tr><th>交通費</th><td>¥${parseInt(costRaw, 10).toLocaleString()}</td></tr>`);
 
@@ -590,22 +647,19 @@ function onBulkRegisterClick() {
 }
 
 async function executeBulkRegister(datelist) {
-  const start_time        = document.getElementById('default-start-time').value || null;
-  const end_time          = document.getElementById('default-end-time').value || null;
-  const departure_station = document.getElementById('default-departure-station').value.trim() || null;
-  const viaVal            = document.getElementById('default-via-station').value.trim();
-  const arrival_station   = document.getElementById('default-arrival-station').value.trim() || null;
-  const costRaw           = document.getElementById('default-transport-cost').value;
-  const transport_cost    = costRaw !== '' ? parseInt(costRaw, 10) : null;
-  const via_station       = viaVal ? [viaVal] : null;
-  const workLocList       = Array.from(document.querySelectorAll('input[name="default-work-location"]:checked'))
-    .map(cb => cb.value);
-  const work_location     = workLocList.length ? workLocList : null;
-  const work_description  = document.getElementById('default-work-description').value.trim() || null;
+  const _ed = getDefaults();
+  const start_time        = _ed.start_time || null;
+  const end_time          = _ed.end_time || null;
+  const departure_station = _ed.departure_station || null;
+  const arrival_station   = _ed.arrival_station || null;
+  const transport_cost    = _ed.transport_cost != null ? _ed.transport_cost : null;
+  const via_station       = (_ed.via_stations && _ed.via_stations.length > 0) ? _ed.via_stations : null;
+  const work_location     = (_ed.work_locations && _ed.work_locations.length > 0) ? _ed.work_locations : null;
+  const work_description  = _ed.work_description || null;
 
   const results = await Promise.allSettled(
     datelist.map(date =>
-      fetch('/api/attendance', {
+      authFetch('/api/attendance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -654,7 +708,7 @@ function onConfirmMonthClick() {
 
 async function confirmMonth() {
   try {
-    const res = await fetch(
+    const res = await authFetch(
       `/api/confirmation?year=${currentYear}&month=${currentMonth}`,
       { method: 'POST' }
     );
@@ -667,6 +721,113 @@ async function confirmMonth() {
     updateConfirmationUI();
   } catch {
     alert('通信エラーが発生しました');
+  }
+}
+
+// ────────────────────────────────
+//  一括削除
+// ────────────────────────────────
+const DOW_LABELS_BD = ['日','月','火','水','木','金','土'];
+
+function onBulkDeleteClick() {
+  const records = Object.values(attendanceMap)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  if (records.length === 0) {
+    alert('削除できる勤怠記録がありません。');
+    return;
+  }
+
+  const listEl = document.getElementById('bulk-delete-list');
+  listEl.innerHTML = '';
+
+  records.forEach(r => {
+    const [, m, d] = r.date.split('-');
+    const dow = new Date(r.date + 'T00:00:00').getDay();
+    let typeLabel = TYPE_LABELS[r.type] || r.type;
+    if (r.paid_leave)      typeLabel += '（有給）';
+    if (r.half_paid_leave) typeLabel += '（半休）';
+
+    const timeStr = (r.start_time && r.end_time)
+      ? `${r.start_time.substring(0,5)} ～ ${r.end_time.substring(0,5)}`
+      : r.start_time ? r.start_time.substring(0,5) : '';
+
+    const label = document.createElement('label');
+    label.className = 'bulk-delete-item';
+    label.innerHTML = `
+      <input type="checkbox" class="bulk-delete-check" value="${r.id}">
+      <span class="bulk-delete-date">${parseInt(m)}/${parseInt(d)}（${DOW_LABELS_BD[dow]}）</span>
+      <span class="bulk-delete-type" style="color:${TYPE_COLORS[r.type] || '#999'}">${typeLabel}</span>
+      ${timeStr ? `<span class="bulk-delete-time">${timeStr}</span>` : ''}`;
+    label.querySelector('.bulk-delete-check').addEventListener('change', updateBulkDeleteCount);
+    listEl.appendChild(label);
+  });
+
+  document.getElementById('bulk-delete-select-all').checked = false;
+  document.getElementById('bulk-delete-select-all').indeterminate = false;
+  updateBulkDeleteCount();
+  document.getElementById('bulk-delete-modal').classList.remove('hidden');
+}
+
+function closeBulkDeleteModal() {
+  document.getElementById('bulk-delete-modal').classList.add('hidden');
+}
+
+function updateBulkDeleteCount() {
+  const allCbs     = document.querySelectorAll('.bulk-delete-check');
+  const checkedCbs = document.querySelectorAll('.bulk-delete-check:checked');
+  const count      = checkedCbs.length;
+
+  document.getElementById('bulk-delete-count').textContent = `${count}件選択中`;
+  document.getElementById('bulk-delete-ok-btn').textContent = count > 0 ? `削除する（${count}件）` : '削除する';
+  document.getElementById('bulk-delete-ok-btn').disabled = count === 0;
+
+  const selectAll = document.getElementById('bulk-delete-select-all');
+  if (count === 0)               { selectAll.indeterminate = false; selectAll.checked = false; }
+  else if (count === allCbs.length) { selectAll.indeterminate = false; selectAll.checked = true; }
+  else                             { selectAll.indeterminate = true; }
+}
+
+function onBulkDeleteOkClick() {
+  const ids = Array.from(document.querySelectorAll('.bulk-delete-check:checked'))
+    .map(cb => parseInt(cb.value, 10));
+  if (ids.length === 0) return;
+
+  closeBulkDeleteModal();
+  showGenericConfirm({
+    title: '削除の確認',
+    okLabel: `${ids.length}件を削除する`,
+    okClass: 'btn-danger',
+    body: `<div class="confirm-month-body">
+      <p class="confirm-month-target">${currentYear}年${currentMonth}月</p>
+      <p class="confirm-month-note">選択した <strong>${ids.length}件</strong> の勤怠記録を削除します。<br>この操作は元に戻せません。</p>
+    </div>`,
+    onOk: () => executeBulkDelete(ids),
+  });
+}
+
+async function executeBulkDelete(ids) {
+  const results = await Promise.allSettled(
+    ids.map(id => authFetch(`/api/attendance/${id}`, { method: 'DELETE' }))
+  );
+
+  const successIds = new Set();
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled' && (r.value.ok || r.value.status === 204)) {
+      successIds.add(ids[i]);
+    }
+  });
+
+  // attendanceMapから削除済みレコードを除去
+  Object.entries(attendanceMap).forEach(([date, rec]) => {
+    if (successIds.has(rec.id)) delete attendanceMap[date];
+  });
+
+  updateCalendarCells();
+
+  const failCount = ids.length - successIds.size;
+  if (failCount > 0) {
+    alert(`${successIds.size}件を削除しました。${failCount}件は削除できませんでした。`);
   }
 }
 
