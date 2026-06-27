@@ -33,6 +33,8 @@ function getToken() {
 }
 
 function logout() {
+  const _t = localStorage.getItem('authToken');
+  if (_t) fetch('/auth/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${_t}` } }).catch(() => {});
   localStorage.removeItem('authToken');
   localStorage.removeItem('username');
   location.href = '/login';
@@ -65,7 +67,9 @@ let attendanceMap = {};
 let holidayMap   = {};
 let editingId    = null;
 let selectedDate = null;
-let isConfirmed  = false;
+let isConfirmed      = false;
+let approvalStatus   = null;  // 'PENDING' | 'APPROVED' | 'REJECTED' | null
+let rejectionReason  = null;
 
 // ────────────────────────────────
 //  初期化
@@ -217,10 +221,14 @@ async function fetchConfirmationStatus() {
     const res = await authFetch(`/api/confirmation?year=${currentYear}&month=${currentMonth}`);
     if (!res.ok) throw new Error();
     const data = await res.json();
-    isConfirmed = data.confirmed;
+    isConfirmed     = data.confirmed;
+    approvalStatus  = data.approval_status || null;
+    rejectionReason = data.rejection_reason || null;
     updateConfirmationUI();
   } catch {
     isConfirmed = false;
+    approvalStatus = null;
+    rejectionReason = null;
     updateConfirmationUI();
   }
 }
@@ -274,7 +282,8 @@ function renderCalendar() {
     cell.appendChild(badge);
 
     cell.addEventListener('click', () => {
-      if (isConfirmed) return;
+      // REJECTED は再編集可能。PENDING/APPROVED はロック
+      if (isConfirmed && approvalStatus !== 'REJECTED') return;
       openModal(dateStr);
     });
     grid.appendChild(cell);
@@ -305,8 +314,16 @@ function updateCalendarCells() {
     if (record) {
       badge.textContent = _badgeLabel(record);
       badge.style.backgroundColor = TYPE_COLORS[record.type] || '#999';
-      badge.style.outline = (record.type === 'ABSENT' && record.paid_leave)
-        ? '2px solid #1976D2' : 'none';
+      const hasPaidLeave = (record.type === 'ABSENT' && record.paid_leave) ||
+        ((record.type === 'LATE' || record.type === 'EARLY_LEAVE') && record.half_paid_leave);
+      if (hasPaidLeave) {
+        const s = record.paid_leave_approval_status;
+        badge.style.outline = s === 'REJECTED'  ? '2px solid #D32F2F'
+                            : s === 'APPROVED'  ? '2px solid #2E7D32'
+                            :                    '2px solid #FF9800';
+      } else {
+        badge.style.outline = 'none';
+      }
       badge.style.display = 'inline-block';
     } else {
       badge.textContent = '';
@@ -316,34 +333,64 @@ function updateCalendarCells() {
 }
 
 function _badgeLabel(record) {
-  if (record.type === 'ABSENT'      && record.paid_leave)      return '欠勤（有給）';
-  if (record.type === 'LATE'        && record.half_paid_leave) return '遅刻（半休）';
-  if (record.type === 'EARLY_LEAVE' && record.half_paid_leave) return '早退（半休）';
+  const s = record.paid_leave_approval_status;
+  const rejected = s === 'REJECTED';
+  if (record.type === 'ABSENT'      && record.paid_leave)      return rejected ? '欠勤（有給否認）' : '欠勤（有給）';
+  if (record.type === 'LATE'        && record.half_paid_leave) return rejected ? '遅刻（半休否認）' : '遅刻（半休）';
+  if (record.type === 'EARLY_LEAVE' && record.half_paid_leave) return rejected ? '早退（半休否認）' : '早退（半休）';
   return TYPE_LABELS[record.type];
 }
 
 function updateConfirmationUI() {
-  const banner       = document.getElementById('confirmed-banner');
-  const confirmBtn   = document.getElementById('confirm-month-btn');
-  const bulkBtn      = document.getElementById('bulk-register-btn');
-  const bulkDelBtn   = document.getElementById('bulk-delete-btn');
-  const grid         = document.getElementById('calendar-grid');
+  const banner         = document.getElementById('confirmed-banner');
+  const rejectedBanner = document.getElementById('rejected-banner');
+  const confirmBtn     = document.getElementById('confirm-month-btn');
+  const bulkBtn        = document.getElementById('bulk-register-btn');
+  const bulkDelBtn     = document.getElementById('bulk-delete-btn');
+  const grid           = document.getElementById('calendar-grid');
 
-  if (isConfirmed) {
-    document.getElementById('confirmed-banner-text').textContent =
-      `${currentYear}年${currentMonth}月`;
-    banner.classList.remove('hidden');
-    confirmBtn.classList.add('hidden');
-    bulkBtn.classList.add('hidden');
-    bulkDelBtn.classList.add('hidden');
-    grid.classList.add('confirmed');
-  } else {
-    banner.classList.add('hidden');
+  // すべて初期化
+  banner.classList.add('hidden');
+  rejectedBanner.classList.add('hidden');
+  grid.classList.remove('confirmed');
+
+  if (!isConfirmed) {
+    // 未確定 → 通常編集可
     confirmBtn.classList.remove('hidden');
     bulkBtn.classList.remove('hidden');
     bulkDelBtn.classList.remove('hidden');
-    grid.classList.remove('confirmed');
+    return;
   }
+
+  if (approvalStatus === 'REJECTED') {
+    // 否認 → 編集可、再申請ボタン表示
+    document.getElementById('rejected-banner-reason').textContent =
+      rejectionReason ? `否認理由: ${rejectionReason}` : '';
+    rejectedBanner.classList.remove('hidden');
+    confirmBtn.classList.remove('hidden');
+    confirmBtn.textContent = 'この月を再申請する';
+    bulkBtn.classList.remove('hidden');
+    bulkDelBtn.classList.remove('hidden');
+    return;
+  }
+
+  // PENDING / APPROVED → 編集ロック
+  const iconEl = document.getElementById('confirmed-icon');
+  const textEl = document.getElementById('confirmed-banner-text');
+  const label  = `${currentYear}年${currentMonth}月`;
+
+  if (approvalStatus === 'PENDING') {
+    iconEl.textContent = '⏳';
+    textEl.textContent = `${label}は申請済みです。管理者の承認をお待ちください。`;
+  } else {
+    iconEl.textContent = '✓';
+    textEl.textContent = `${label}は承認済みです。勤怠情報の変更はできません。`;
+  }
+  banner.classList.remove('hidden');
+  confirmBtn.classList.add('hidden');
+  bulkBtn.classList.add('hidden');
+  bulkDelBtn.classList.add('hidden');
+  grid.classList.add('confirmed');
 }
 
 // ────────────────────────────────
@@ -369,8 +416,10 @@ function openModal(dateStr) {
     document.getElementById('reason').value                = record.reason || '';
     document.getElementById('departure-station').value     = record.departure_station || '';
     document.getElementById('arrival-station').value       = record.arrival_station || '';
-    document.getElementById('transport-cost').value        =
+    document.getElementById('transport-cost').value =
       record.transport_cost != null ? record.transport_cost : '';
+    document.getElementById('break-start').value = toTimeInput(record.break_start);
+    document.getElementById('break-end').value   = toTimeInput(record.break_end);
     document.querySelectorAll('input[name="work-location"]').forEach(cb => {
       cb.checked = Array.isArray(record.work_location) && record.work_location.includes(cb.value);
     });
@@ -388,13 +437,39 @@ function openModal(dateStr) {
     document.getElementById('reason').value                = '';
     document.getElementById('departure-station').value     = _d.departure_station || '';
     document.getElementById('arrival-station').value       = _d.arrival_station || '';
-    document.getElementById('transport-cost').value        = _d.transport_cost != null ? _d.transport_cost : '';
+    document.getElementById('transport-cost').value = _d.transport_cost != null ? _d.transport_cost : '';
+    document.getElementById('break-start').value   = _d.break_start || '';
+    document.getElementById('break-end').value     = _d.break_end   || '';
     setViaStations(_d.via_stations && _d.via_stations.length > 0 ? _d.via_stations : []);
     const _defLocs = _d.work_locations || [];
     document.querySelectorAll('input[name="work-location"]').forEach(cb => {
       cb.checked = _defLocs.includes(cb.value);
     });
     document.getElementById('delete-btn').style.display = 'none';
+  }
+
+  // 有給・半休申請ステータス表示
+  const plField    = document.getElementById('paid-leave-status-field');
+  const plBadge    = document.getElementById('paid-leave-status-badge');
+  const plReason   = document.getElementById('paid-leave-rejection-reason-text');
+  const hasPL = record && (
+    (record.type === 'ABSENT'      && record.paid_leave) ||
+    ((record.type === 'LATE' || record.type === 'EARLY_LEAVE') && record.half_paid_leave)
+  );
+  if (hasPL && record.paid_leave_approval_status) {
+    const s = record.paid_leave_approval_status;
+    const PL_LABELS = { PENDING: '申請中（承認待ち）', APPROVED: '承認済', REJECTED: '否認' };
+    plBadge.textContent = PL_LABELS[s] || s;
+    plBadge.className   = `approval-status-badge approval-status-badge--${s.toLowerCase()}`;
+    if (s === 'REJECTED' && record.paid_leave_rejection_reason) {
+      plReason.textContent    = `否認理由: ${record.paid_leave_rejection_reason}`;
+      plReason.style.display  = 'block';
+    } else {
+      plReason.style.display = 'none';
+    }
+    plField.style.display = 'block';
+  } else {
+    plField.style.display = 'none';
   }
 
   document.querySelector('.modal-body').scrollTop = 0;
@@ -418,6 +493,7 @@ function toggleTypeFields() {
   document.getElementById('half-paid-leave-field').style.display  = isLateEarly ? 'block' : 'none';
   document.getElementById('reason-field').style.display           = needsReason ? 'block' : 'none';
   document.getElementById('time-fields').style.display            = isAbsent    ? 'none'  : 'flex';
+  document.getElementById('break-time-fields').style.display      = isAbsent    ? 'none'  : 'flex';
   document.getElementById('work-location-field').style.display    = isAbsent    ? 'none'  : 'block';
   document.getElementById('transit-fields').style.display         = isAbsent    ? 'none'  : 'block';
   document.getElementById('work-description-field').style.display = isAbsent    ? 'none'  : 'block';
@@ -435,9 +511,7 @@ function validateSaveButton() {
 
   if (!isAbsent) {
     const startTime = document.getElementById('start-time').value;
-    const endTime   = document.getElementById('end-time').value;
-    const workDesc  = document.getElementById('work-description').value.trim();
-    if (!startTime || !endTime || !workDesc) valid = false;
+    if (!startTime) valid = false;
   }
 
   if (needsReason) {
@@ -466,22 +540,24 @@ function onSaveClick() {
   const depStation  = document.getElementById('departure-station').value.trim();
   const viaStations = getViaStations();
   const arrStation  = document.getElementById('arrival-station').value.trim();
-  const costVal     = document.getElementById('transport-cost').value;
-  const transCost   = costVal !== '' ? parseInt(costVal, 10) : null;
+  const costVal    = document.getElementById('transport-cost').value;
+  const transCost  = costVal !== '' ? parseInt(costVal, 10) : null;
+  const breakStart = document.getElementById('break-start').value || null;
+  const breakEnd   = document.getElementById('break-end').value   || null;
 
   showGenericConfirm({
     title: '保存の確認',
     okLabel: '保存する',
     body: buildSaveDetails({
       type, paidLeave, halfPaidLeave, startTime, endTime, reason,
-      workLoc, workDesc, note, depStation, viaStations, arrStation, transCost,
+      workLoc, workDesc, note, depStation, viaStations, arrStation, transCost, breakStart, breakEnd,
     }),
     onOk: saveAttendance,
   });
 }
 
 function buildSaveDetails({ type, paidLeave, halfPaidLeave, startTime, endTime, reason,
-    workLoc, workDesc, note, depStation, viaStations, arrStation, transCost }) {
+    workLoc, workDesc, note, depStation, viaStations, arrStation, transCost, breakStart, breakEnd }) {
   const [y, m, d] = selectedDate.split('-');
   let typeLabel = TYPE_LABELS[type];
   if (paidLeave)     typeLabel += '（有給）';
@@ -495,6 +571,7 @@ function buildSaveDetails({ type, paidLeave, halfPaidLeave, startTime, endTime, 
   if (type !== 'ABSENT') {
     if (startTime)             rows += `<tr><th>出勤時刻</th><td>${startTime}</td></tr>`;
     if (endTime)               rows += `<tr><th>退勤時刻</th><td>${endTime}</td></tr>`;
+    if (breakStart)            rows += `<tr><th>休憩</th><td>${breakStart} ～ ${breakEnd || ''}</td></tr>`;
     if (workLoc.length > 0)    rows += `<tr><th>勤務地</th><td>${workLoc.join('、')}</td></tr>`;
     if (depStation)            rows += `<tr><th>出発駅</th><td>${depStation}</td></tr>`;
     if (viaStations.length > 0) rows += `<tr><th>経由駅</th><td>${viaStations.join(' → ')}</td></tr>`;
@@ -528,6 +605,8 @@ async function saveAttendance() {
   const arrival_station   = is_absent ? null : (document.getElementById('arrival-station').value.trim() || null);
   const costVal = document.getElementById('transport-cost').value;
   const transport_cost = (is_absent || costVal === '') ? null : parseInt(costVal, 10);
+  const break_start = is_absent ? null : (document.getElementById('break-start').value || null);
+  const break_end   = is_absent ? null : (document.getElementById('break-end').value   || null);
 
   const url    = editingId ? `/api/attendance/${editingId}` : '/api/attendance';
   const method = editingId ? 'PUT' : 'POST';
@@ -539,7 +618,8 @@ async function saveAttendance() {
       body: JSON.stringify({
         date: selectedDate, type, start_time, end_time, note,
         paid_leave, half_paid_leave, work_location, work_description,
-        departure_station, via_station, arrival_station, transport_cost, reason,
+        departure_station, via_station, arrival_station, transport_cost,
+        break_start, break_end, reason,
       }),
     });
 
@@ -656,6 +736,8 @@ async function executeBulkRegister(datelist) {
   const via_station       = (_ed.via_stations && _ed.via_stations.length > 0) ? _ed.via_stations : null;
   const work_location     = (_ed.work_locations && _ed.work_locations.length > 0) ? _ed.work_locations : null;
   const work_description  = _ed.work_description || null;
+  const break_start       = _ed.break_start || null;
+  const break_end         = _ed.break_end   || null;
 
   const results = await Promise.allSettled(
     datelist.map(date =>
@@ -667,6 +749,7 @@ async function executeBulkRegister(datelist) {
           start_time, end_time,
           work_location, work_description,
           departure_station, via_station, arrival_station, transport_cost,
+          break_start, break_end,
         }),
       }).then(async res => {
         if (!res.ok) throw new Error();
@@ -714,14 +797,61 @@ async function confirmMonth() {
     );
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
+      if (err.detail === 'PENDING_LEAVE_APPROVAL') {
+        showPendingLeaveModal();
+        return;
+      }
       alert(err.message || '確定に失敗しました');
       return;
     }
-    isConfirmed = true;
+    isConfirmed    = true;
+    approvalStatus = 'PENDING';
+    document.getElementById('confirm-month-btn').textContent = 'この月を確定する';
     updateConfirmationUI();
   } catch {
     alert('通信エラーが発生しました');
   }
+}
+
+function showPendingLeaveModal() {
+  showGenericConfirm({
+    title: '月次確定できません',
+    okLabel: '閉じる',
+    okClass: 'btn-secondary',
+    body: `<div class="confirm-month-body">
+      <p class="confirm-month-note" style="color:#E65100;font-weight:600;">⚠ 未承認の有給申請があります</p>
+      <p class="confirm-month-note" style="margin-top:8px;">すべての有給申請が承認されるまで、${currentYear}年${currentMonth}月を確定できません。</p>
+      <div style="margin-top:16px;display:flex;align-items:center;gap:12px;">
+        <button id="send-review-btn" class="btn btn-warning" type="button">管理者に承認を依頼する</button>
+        <span id="review-sent-txt" style="display:none;color:#2E7D32;font-size:0.85rem;font-weight:600;">&#10003; 送信しました</span>
+      </div>
+    </div>`,
+    onOk: () => {},
+  });
+  document.getElementById('send-review-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('send-review-btn');
+    btn.disabled = true;
+    btn.textContent = '送信中...';
+    try {
+      const res = await authFetch(
+        `/api/confirmation/request-leave-review?year=${currentYear}&month=${currentMonth}`,
+        { method: 'POST' }
+      );
+      if (res.ok || res.status === 204) {
+        btn.textContent = '送信済み';
+        const txt = document.getElementById('review-sent-txt');
+        if (txt) txt.style.display = 'inline';
+      } else {
+        btn.disabled = false;
+        btn.textContent = '管理者に承認を依頼する';
+        alert('送信に失敗しました。');
+      }
+    } catch {
+      btn.disabled = false;
+      btn.textContent = '管理者に承認を依頼する';
+      alert('通信エラーが発生しました。');
+    }
+  });
 }
 
 // ────────────────────────────────

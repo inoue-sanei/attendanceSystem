@@ -41,12 +41,35 @@
         <div class="mypage-stat-value mypage-stat-value--absence" id="stat-absence">-</div>
         <div class="mypage-stat-label">欠勤日数</div>
       </div>
+      <div class="mypage-stat-card">
+        <div class="mypage-stat-value mypage-stat-value--work" id="stat-work-hours">-</div>
+        <div class="mypage-stat-label">稼働時間</div>
+      </div>
+      <div class="mypage-stat-card">
+        <div class="mypage-stat-value mypage-stat-value--overtime" id="stat-overtime">-</div>
+        <div class="mypage-stat-label">残業時間</div>
+      </div>
       <div class="mypage-stat-card mypage-stat-card--leave">
         <div class="mypage-stat-value mypage-stat-value--leave" id="stat-leave">-</div>
         <div class="mypage-stat-label">残有休数</div>
         <div class="mypage-stat-sub" id="stat-leave-sub"></div>
       </div>
     </div>
+
+    <!-- 申請ステータス -->
+    <section class="mypage-approval-section">
+      <h3 class="mypage-section-title">申請ステータス</h3>
+
+      <div class="approval-category">
+        <div class="approval-category-title">有給申請（今年度）</div>
+        <div id="paid-leave-approval-list"></div>
+      </div>
+
+      <div class="approval-category">
+        <div class="approval-category-title">月次勤怠申請（直近6ヶ月）</div>
+        <div id="month-confirmation-list"></div>
+      </div>
+    </section>
 
     <!-- メニュー -->
     <div class="mypage-menu">
@@ -60,9 +83,10 @@
         <span class="mypage-menu-label">パスワード変更</span>
         <span class="mypage-menu-arrow">&#8250;</span>
       </a>
-      <a href="/board" class="mypage-menu-item">
+      <a href="/board" class="mypage-menu-item" id="menu-board">
         <span class="mypage-menu-icon">&#128172;</span>
         <span class="mypage-menu-label">掲示板</span>
+        <span id="board-notification-badge" class="board-notification-badge hidden"></span>
         <span class="mypage-menu-arrow">&#8250;</span>
       </a>
     </div>

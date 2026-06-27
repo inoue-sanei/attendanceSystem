@@ -122,6 +122,16 @@ def delete_comment(
         raise HTTPException(status_code=code, detail=msg)
 
 
+@router.get("/notifications")
+def get_notifications(
+    since: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """since (ISO8601) 以降の未読スレッド・コメント件数を返す"""
+    return board_svc.get_notification_count(db, since, current_user.id)
+
+
 @router.post("/threads/{thread_id}/react")
 def react_to_thread(
     thread_id: int,

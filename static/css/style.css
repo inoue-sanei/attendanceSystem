@@ -586,6 +586,17 @@ main {
   margin-bottom: 0;
 }
 
+#break-time-fields {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+#break-time-fields .form-group {
+  flex: 1;
+  margin-bottom: 0;
+}
+
 .modal-actions {
   display: flex;
   gap: 8px;
@@ -915,6 +926,35 @@ main {
 .confirmed-icon {
   font-size: 1.1rem;
   flex-shrink: 0;
+}
+
+/* 否認バナー */
+.rejected-banner {
+  background: #FFEBEE;
+  border: 1px solid #EF9A9A;
+  border-radius: 8px;
+  padding: 12px 18px;
+  margin-bottom: 14px;
+  color: #c62828;
+}
+
+.rejected-banner.hidden { display: none; }
+
+.rejected-banner-title {
+  font-weight: 700;
+  font-size: 0.92rem;
+  margin-bottom: 4px;
+}
+
+.rejected-banner-reason {
+  font-size: 0.88rem;
+  margin-bottom: 4px;
+  word-break: break-all;
+}
+
+.rejected-banner-hint {
+  font-size: 0.8rem;
+  color: #e53935;
 }
 
 /* 確定済み月はカレンダーを編集不可にする */
@@ -1613,7 +1653,7 @@ body:not(.login-page) {
 /* 統計グリッド */
 .mypage-stats-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-bottom: 20px;
 }
@@ -1641,8 +1681,10 @@ body:not(.login-page) {
   line-height: 1.2;
 }
 
-.mypage-stat-value--absence { color: #f44336; }
-.mypage-stat-value--leave   { color: #388E3C; }
+.mypage-stat-value--absence  { color: #f44336; }
+.mypage-stat-value--leave    { color: #388E3C; }
+.mypage-stat-value--work     { color: #0288D1; }
+.mypage-stat-value--overtime { color: #E65100; }
 
 .mypage-stat-label {
   font-size: 0.72rem;
@@ -1653,6 +1695,127 @@ body:not(.login-page) {
 .mypage-stat-sub {
   font-size: 0.75rem;
   color: #aaa;
+}
+
+/* ============================
+   申請ステータスセクション（マイページ）
+   ============================ */
+.mypage-approval-section {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 0 16px 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.mypage-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 12px;
+}
+
+.approval-category {
+  margin-bottom: 14px;
+}
+
+.approval-category:last-child {
+  margin-bottom: 0;
+}
+
+.approval-category-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 8px;
+}
+
+.approval-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f8f8f8;
+  font-size: 13px;
+}
+
+.approval-item:last-child {
+  border-bottom: none;
+}
+
+.approval-item__main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.approval-item__date {
+  flex-shrink: 0;
+  color: #555;
+  min-width: 72px;
+  font-size: 13px;
+}
+
+.approval-item__type {
+  flex: 1;
+  color: #333;
+}
+
+.approval-item__status {
+  flex-shrink: 0;
+}
+
+.approval-item__reason {
+  font-size: 11px;
+  color: #C62828;
+  margin-top: 4px;
+  padding-left: 4px;
+}
+
+.approval-empty {
+  font-size: 13px;
+  color: #aaa;
+  padding: 8px 0;
+  text-align: center;
+}
+
+/* 申請ステータスタグ（マイページリスト用） */
+.approval-status-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.approval-status-tag--pending  { background: #FFF3E0; color: #E65100; }
+.approval-status-tag--approved { background: #E8F5E9; color: #2E7D32; }
+.approval-status-tag--rejected { background: #FFEBEE; color: #C62828; }
+.approval-status-tag--none     { background: #F5F5F5; color: #999; }
+
+/* 申請ステータスバッジ（カレンダーモーダル用） */
+.approval-status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.approval-status-badge--pending  { background: #FFF3E0; color: #E65100; }
+.approval-status-badge--approved { background: #E8F5E9; color: #2E7D32; }
+.approval-status-badge--rejected { background: #FFEBEE; color: #C62828; }
+
+.approval-rejection-reason {
+  font-size: 12px;
+  color: #C62828;
+  margin: 6px 0 0;
+}
+
+#paid-leave-status-field {
+  padding: 8px 0;
+  margin-bottom: 4px;
 }
 
 /* メニューリスト */
@@ -2148,6 +2311,291 @@ body:not(.login-page) {
 .board-error.hidden { display: none; }
 
 /* ────────────────────────────────
+   管理者共通
+──────────────────────────────── */
+body.admin-page {
+  padding-bottom: 0;
+}
+
+.admin-badge {
+  display: inline-block;
+  background: rgba(255,255,255,0.25);
+  border: 1px solid rgba(255,255,255,0.45);
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  vertical-align: middle;
+  letter-spacing: 0.03em;
+}
+
+.admin-main {
+  max-width: 900px;
+  margin: 24px auto;
+  padding: 0 16px 40px;
+}
+
+.admin-page-header {
+  margin-bottom: 20px;
+}
+
+.admin-page-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+/* ── ダッシュボード サマリー ── */
+.admin-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.admin-summary-card {
+  background: white;
+  border-radius: 12px;
+  padding: 18px 16px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  border: 2px solid transparent;
+}
+
+.admin-summary-card--warn {
+  border-color: #FFB74D;
+  background: #FFF8E1;
+}
+
+.admin-summary-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #1976D2;
+  line-height: 1.2;
+}
+
+.admin-summary-label {
+  font-size: 0.75rem;
+  color: #888;
+  margin-top: 4px;
+}
+
+/* ── 管理者メニュー ── */
+.admin-menu {
+  background: white;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+}
+
+.admin-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 20px;
+  text-decoration: none;
+  color: #333;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.15s;
+  position: relative;
+}
+
+.admin-menu-item:last-child { border-bottom: none; }
+.admin-menu-item:hover { background: #f5f5f5; }
+
+.admin-menu-icon {
+  font-size: 1.4rem;
+  width: 36px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.admin-menu-body { flex: 1; }
+
+.admin-menu-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.admin-menu-desc {
+  font-size: 0.82rem;
+  color: #888;
+  margin-top: 2px;
+}
+
+.admin-menu-arrow {
+  color: #ccc;
+  font-size: 1.4rem;
+}
+
+.admin-menu-badge {
+  background: #f44336;
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 2px 8px;
+  min-width: 22px;
+  text-align: center;
+}
+
+.admin-menu-badge.hidden { display: none; }
+
+/* ── テーブル共通 ── */
+.admin-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  font-size: 0.9rem;
+}
+
+.admin-table th {
+  background: #f5f5f5;
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #555;
+  white-space: nowrap;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.admin-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f0f0f0;
+  vertical-align: middle;
+}
+
+.admin-table tr:last-child td { border-bottom: none; }
+.admin-table tr:hover td { background: #fafafa; }
+
+.admin-table-empty {
+  text-align: center;
+  color: #bbb;
+  padding: 32px 16px;
+  font-size: 0.88rem;
+}
+
+.admin-table-actions {
+  white-space: nowrap;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ── ユーザー状態バッジ ── */
+.user-status {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.user-status--active {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.user-status--inactive {
+  background: #ffebee;
+  color: #c62828;
+}
+
+/* ── 承認状態バッジ ── */
+.approval-status {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.approval-status--pending  { background: #FFF3E0; color: #E65100; }
+.approval-status--approved { background: #E8F5E9; color: #2E7D32; }
+.approval-status--rejected { background: #FFEBEE; color: #C62828; }
+
+/* ── 承認ページ タブ ── */
+.approval-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 16px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.approval-tab {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  background: #f5f5f5;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #888;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.approval-tab--active {
+  background: white;
+  color: #1976D2;
+  border-bottom: 2px solid #1976D2;
+  margin-bottom: -2px;
+}
+
+.tab-badge {
+  background: #f44336;
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 1px 7px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.tab-badge.hidden { display: none; }
+
+/* ── フィルター ── */
+.approval-filter {
+  margin-bottom: 16px;
+}
+
+.approval-filter select {
+  padding: 7px 12px;
+  border: 1px solid #ddd;
+  border-radius: 7px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  outline: none;
+  background: white;
+}
+
+/* ── 否認理由表示 ── */
+.rejection-note {
+  font-size: 0.78rem;
+  color: #c62828;
+  max-width: 200px;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+/* ────────────────────────────────
    レスポンシブ調整
 ──────────────────────────────── */
 @media (max-width: 600px) {
@@ -2201,3 +2649,91 @@ body:not(.login-page) {
     gap: 0;
   }
 }
+
+/* ────────────────────────────────
+   掲示板通知バッジ（マイページ）
+──────────────────────────────── */
+.board-notification-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  background: #e53935;
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 10px;
+  line-height: 1;
+  margin-left: auto;
+  margin-right: 6px;
+}
+
+.board-notification-badge.hidden {
+  display: none;
+}
+
+.btn-warning {
+  background: #F57C00;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.btn-warning:hover    { background: #E65100; }
+.btn-warning:disabled { background: #BDBDBD; cursor: default; }
+
+/* ────────────────────────────────
+   管理者サマリーカード（承認依頼）
+──────────────────────────────── */
+.admin-summary-card--notify {
+  border-top: 4px solid #1976D2;
+}
+
+/* ────────────────────────────────
+   有給承認依頼通知パネル（管理者）
+──────────────────────────────── */
+.leave-review-panel {
+  background: #E3F2FD;
+  border: 1px solid #90CAF9;
+  border-left: 4px solid #1976D2;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.leave-review-panel-title {
+  font-weight: 600;
+  color: #1565C0;
+  font-size: 0.95rem;
+  margin-bottom: 10px;
+}
+
+.leave-review-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.leave-review-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  background: white;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.leave-review-user  { font-weight: 600; color: #333; min-width: 80px; }
+.leave-review-month { color: #1976D2; font-weight: 600; }
+.leave-review-time  { color: #888; font-size: 0.82rem; margin-left: auto; }

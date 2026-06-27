@@ -37,7 +37,7 @@
     const msgBox = document.getElementById('msg');
 
     if (localStorage.getItem('authToken')) {
-      location.href = '/daily';
+      location.href = localStorage.getItem('isAdmin') === '1' ? '/admin' : '/daily';
     }
 
     function showMsg(text) {
@@ -73,7 +73,8 @@
         }
         localStorage.setItem('authToken', data.access_token);
         localStorage.setItem('username', data.user.username);
-        location.href = '/daily';
+        localStorage.setItem('isAdmin', data.user.is_admin ? '1' : '0');
+        location.href = data.user.is_admin ? '/admin' : '/daily';
       } catch {
         showMsg('通信エラーが発生しました。');
       } finally {

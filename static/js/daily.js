@@ -13,6 +13,8 @@ if (!token) location.href = '/login';
 
 document.getElementById('header-username').textContent = localStorage.getItem('username') || '';
 document.getElementById('logout-btn').addEventListener('click', () => {
+  const _t = localStorage.getItem('authToken');
+  if (_t) fetch('/auth/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${_t}` } }).catch(() => {});
   localStorage.removeItem('authToken');
   localStorage.removeItem('username');
   location.href = '/login';
@@ -99,6 +101,7 @@ function toggleTypeFields(prefix) {
   show(`${prefix}-half-paid-field`,  isLateEarly);
   show(`${prefix}-reason-field`,     isAbsent || isLateEarly);
   show(`${prefix}-time-fields`,      !isAbsent);
+  show(`${prefix}-break-field`,      !isAbsent);
   show(`${prefix}-work-fields`,      !isAbsent);
 
   // 出勤ボタンのラベル変更（ci のみ）
@@ -139,8 +142,10 @@ function fillCheckinDefaults() {
   const d = getDefaults();
 
   document.getElementById('ci-type').value     = 'PRESENT';
-  document.getElementById('ci-start').value    = currentTime();
-  document.getElementById('ci-end').value      = d.end_time || '';
+  document.getElementById('ci-start').value       = currentTime();
+  document.getElementById('ci-end').value         = d.end_time || '';
+  document.getElementById('ci-break-start').value = d.break_start || '';
+  document.getElementById('ci-break-end').value   = d.break_end   || '';
   document.getElementById('ci-paid-leave').checked = false;
   document.getElementById('ci-half-paid').checked  = false;
   document.getElementById('ci-reason').value   = '';
@@ -164,7 +169,9 @@ function fillCheckinDefaults() {
 function fillCheckoutFromRecord(r) {
   document.getElementById('co-type').value     = r.type;
   document.getElementById('co-end').value      = currentTime();
-  document.getElementById('co-start').value    = r.start_time ? r.start_time.substring(0,5) : '';
+  document.getElementById('co-start').value       = r.start_time ? r.start_time.substring(0,5) : '';
+  document.getElementById('co-break-start').value = r.break_start ? r.break_start.substring(0,5) : '';
+  document.getElementById('co-break-end').value   = r.break_end   ? r.break_end.substring(0,5)   : '';
   document.getElementById('co-paid-leave').checked = r.paid_leave || false;
   document.getElementById('co-half-paid').checked  = r.half_paid_leave || false;
   document.getElementById('co-reason').value   = r.reason || '';
@@ -206,6 +213,8 @@ function buildPayload(prefix, date) {
   const via_station = (viaList && viaList.length > 0) ? viaList : null;
   const costVal = document.getElementById(`${prefix}-cost`).value;
   const transport_cost = (isAbsent || costVal === '') ? null : parseInt(costVal, 10);
+  const break_start = isAbsent ? null : (document.getElementById(`${prefix}-break-start`).value || null);
+  const break_end   = isAbsent ? null : (document.getElementById(`${prefix}-break-end`).value   || null);
   const note = document.getElementById(`${prefix}-note`).value.trim() || null;
 
   return {
@@ -213,6 +222,7 @@ function buildPayload(prefix, date) {
     paid_leave, half_paid_leave, reason,
     work_location, work_description,
     departure_station, via_station, arrival_station, transport_cost,
+    break_start, break_end,
     note,
   };
 }
@@ -244,13 +254,16 @@ function renderState() {
   }
 
   // 退勤済み
-  const start = record.start_time ? record.start_time.substring(0,5) : '';
-  const end   = record.end_time   ? record.end_time.substring(0,5)   : '';
+  const start      = record.start_time   ? record.start_time.substring(0,5)   : '';
+  const end        = record.end_time     ? record.end_time.substring(0,5)     : '';
+  const breakStart = record.break_start  ? record.break_start.substring(0,5)  : '';
+  const breakEnd   = record.break_end    ? record.break_end.substring(0,5)    : '';
   const locs  = Array.isArray(record.work_location) ? record.work_location.join('・') : '';
   const desc  = record.work_description || '';
 
   let html = `<div class="summary-row"><span>出勤</span><strong>${start}</strong></div>
               <div class="summary-row"><span>退勤</span><strong>${end}</strong></div>`;
+  if (breakStart && breakEnd) html += `<div class="summary-row"><span>休憩</span><span>${breakStart} ～ ${breakEnd}</span></div>`;
   if (locs) html += `<div class="summary-row"><span>勤務地</span><span>${locs}</span></div>`;
   if (desc) html += `<div class="summary-row"><span>業務内容</span><span>${desc}</span></div>`;
 

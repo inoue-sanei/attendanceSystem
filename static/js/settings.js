@@ -15,6 +15,8 @@ function saveDefaults(d) {
 if (!localStorage.getItem('authToken')) location.href = '/login';
 document.getElementById('header-username').textContent = localStorage.getItem('username') || '';
 document.getElementById('logout-btn').addEventListener('click', () => {
+  const _t = localStorage.getItem('authToken');
+  if (_t) fetch('/auth/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${_t}` } }).catch(() => {});
   localStorage.removeItem('authToken');
   localStorage.removeItem('username');
   location.href = '/login';
@@ -64,8 +66,10 @@ document.getElementById('s-add-via').addEventListener('click', () => addViaField
 function loadForm() {
   const d = getDefaults();
 
-  document.getElementById('s-start-time').value = d.start_time || '';
-  document.getElementById('s-end-time').value   = d.end_time || '';
+  document.getElementById('s-start-time').value   = d.start_time   || '';
+  document.getElementById('s-end-time').value     = d.end_time     || '';
+  document.getElementById('s-break-start').value  = d.break_start  || '';
+  document.getElementById('s-break-end').value    = d.break_end    || '';
   document.getElementById('s-dep').value        = d.departure_station || '';
   document.getElementById('s-arr').value        = d.arrival_station || '';
   document.getElementById('s-cost').value       = d.transport_cost != null ? d.transport_cost : '';
@@ -93,8 +97,10 @@ document.getElementById('settings-form').addEventListener('submit', (e) => {
 
   const costVal = document.getElementById('s-cost').value;
   saveDefaults({
-    start_time:        document.getElementById('s-start-time').value || '',
-    end_time:          document.getElementById('s-end-time').value || '',
+    start_time:        document.getElementById('s-start-time').value  || '',
+    end_time:          document.getElementById('s-end-time').value    || '',
+    break_start:       document.getElementById('s-break-start').value || '',
+    break_end:         document.getElementById('s-break-end').value   || '',
     departure_station: document.getElementById('s-dep').value.trim(),
     via_stations:      getViaValues(),
     arrival_station:   document.getElementById('s-arr').value.trim(),

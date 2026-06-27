@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>作業者一覧 - 勤怠管理</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="admin-page">
+  <header>
+    <h1>勤怠管理 <span class="admin-badge">管理者</span></h1>
+    <div class="header-user">
+      <span id="header-username" class="header-username"></span>
+      <button id="logout-btn" class="btn-logout" type="button">ログアウト</button>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <div class="admin-page-header">
+      <a href="/admin" class="back-link">&#8249; 管理者TOP</a>
+      <div class="admin-page-header-row">
+        <div class="page-title">作業者一覧</div>
+        <button id="add-user-btn" class="btn btn-primary">＋ 新規登録</button>
+      </div>
+    </div>
+
+    <div id="user-list-msg" class="settings-msg hidden"></div>
+
+    <!-- 作業者テーブル -->
+    <div class="admin-table-wrap">
+      <table class="admin-table" id="user-table">
+        <thead>
+          <tr>
+            <th>氏名</th>
+            <th>役職</th>
+            <th>メールアドレス</th>
+            <th>有休日数</th>
+            <th>状態</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="user-tbody">
+          <tr><td colspan="6" class="admin-table-empty">読み込み中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- 作業者 登録/編集モーダル -->
+  <div id="user-modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-overlay" id="user-modal-overlay"></div>
+    <div class="modal-content">
+      <h3 id="user-modal-title">作業者登録</h3>
+      <div class="modal-body">
+        <div id="user-form-msg" class="settings-msg hidden"></div>
+        <div class="form-group">
+          <label for="f-username">氏名 <span class="required">*</span></label>
+          <input type="text" id="f-username" placeholder="例：山田 太郎">
+        </div>
+        <div class="form-group">
+          <label for="f-role">役職</label>
+          <input type="text" id="f-role" placeholder="例：エンジニア">
+        </div>
+        <div class="form-group">
+          <label for="f-email">メールアドレス <span class="required">*</span></label>
+          <input type="email" id="f-email" placeholder="example@email.com">
+        </div>
+        <div class="form-group" id="f-password-group">
+          <label for="f-password">パスワード <span class="required">*</span></label>
+          <input type="password" id="f-password" placeholder="8文字以上">
+        </div>
+        <div class="settings-row">
+          <div class="form-group">
+            <label for="f-leave-days">有休付与日数</label>
+            <input type="number" id="f-leave-days" min="0" max="40" value="20">
+          </div>
+          <div class="form-group">
+            <label for="f-leave-month">付与月</label>
+            <select id="f-leave-month">
+              <option value="1">1月</option><option value="2">2月</option>
+              <option value="3">3月</option><option value="4">4月</option>
+              <option value="5">5月</option><option value="6">6月</option>
+              <option value="7">7月</option><option value="8">8月</option>
+              <option value="9">9月</option><option value="10">10月</option>
+              <option value="11">11月</option><option value="12">12月</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" id="f-active-group" style="display:none">
+          <label class="checkbox-label">
+            <input type="checkbox" id="f-is-active" checked>アカウント有効
+          </label>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="user-cancel-btn" class="btn btn-secondary">キャンセル</button>
+        <button id="user-save-btn" class="btn btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 削除確認モーダル -->
+  <div id="delete-modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-overlay" id="delete-modal-overlay"></div>
+    <div class="modal-content confirm-content">
+      <h3>作業者の削除</h3>
+      <div class="modal-body">
+        <p id="delete-confirm-text" style="font-size:0.95rem;line-height:1.6;"></p>
+      </div>
+      <div class="modal-actions">
+        <button id="delete-cancel-btn" class="btn btn-secondary">キャンセル</button>
+        <button id="delete-ok-btn" class="btn btn-danger">削除する</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/admin_users.js"></script>
+</body>
+</html>

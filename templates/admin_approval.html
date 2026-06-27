@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>勤怠申請承認 - 勤怠管理</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="admin-page">
+  <header>
+    <h1>勤怠管理 <span class="admin-badge">管理者</span></h1>
+    <div class="header-user">
+      <span id="header-username" class="header-username"></span>
+      <button id="logout-btn" class="btn-logout" type="button">ログアウト</button>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <div class="admin-page-header">
+      <a href="/admin" class="back-link">&#8249; 管理者TOP</a>
+      <div class="page-title">勤怠申請承認</div>
+    </div>
+
+    <!-- タブ -->
+    <div class="approval-tabs">
+      <button class="approval-tab approval-tab--active" data-tab="monthly" id="tab-monthly">
+        月次確定申請
+        <span id="monthly-badge" class="tab-badge hidden"></span>
+      </button>
+      <button class="approval-tab" data-tab="leave" id="tab-leave">
+        有休申請
+        <span id="leave-badge" class="tab-badge hidden"></span>
+      </button>
+    </div>
+
+    <!-- フィルター -->
+    <div class="approval-filter">
+      <select id="status-filter">
+        <option value="">すべて</option>
+        <option value="PENDING" selected>承認待ち</option>
+        <option value="APPROVED">承認済み</option>
+        <option value="REJECTED">否認済み</option>
+      </select>
+    </div>
+
+    <!-- 月次確定申請タブコンテンツ -->
+    <div id="tab-monthly-content" class="approval-content">
+      <div id="monthly-list">
+        <div class="admin-table-empty">読み込み中...</div>
+      </div>
+    </div>
+
+    <!-- 有休申請タブコンテンツ -->
+    <div id="tab-leave-content" class="approval-content" style="display:none">
+      <!-- 承認依頼通知パネル -->
+      <div id="leave-review-requests-panel" class="leave-review-panel hidden">
+        <div class="leave-review-panel-title">&#128276; 作業者から承認依頼が届いています</div>
+        <ul id="leave-review-requests-list" class="leave-review-list"></ul>
+      </div>
+      <div id="leave-list">
+        <div class="admin-table-empty">読み込み中...</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 否認モーダル -->
+  <div id="reject-modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-overlay" id="reject-modal-overlay"></div>
+    <div class="modal-content confirm-content">
+      <h3>否認理由の入力</h3>
+      <div class="modal-body">
+        <p id="reject-target-text" style="font-size:0.9rem;color:#555;margin-bottom:12px;"></p>
+        <div class="form-group">
+          <label for="reject-reason">否認理由 <span class="required">*</span></label>
+          <textarea id="reject-reason" placeholder="作業者に通知される否認理由を入力してください" rows="4"></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="reject-cancel-btn" class="btn btn-secondary">キャンセル</button>
+        <button id="reject-ok-btn" class="btn btn-danger">否認する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 月次詳細モーダル（作業者の勤怠一覧） -->
+  <div id="detail-modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-overlay" id="detail-modal-overlay"></div>
+    <div class="modal-content" style="width:600px;max-width:calc(100% - 32px)">
+      <h3 id="detail-modal-title">勤怠詳細</h3>
+      <div class="modal-body" id="detail-modal-body" style="max-height:60vh;overflow-y:auto">
+        <div class="admin-table-empty">読み込み中...</div>
+      </div>
+      <div class="modal-actions">
+        <button id="detail-close-btn" class="btn btn-secondary">閉じる</button>
+        <button id="detail-approve-btn" class="btn btn-primary">承認する</button>
+        <button id="detail-reject-btn" class="btn btn-danger">否認する</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/admin_approval.js"></script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from datetime import date, time
+from datetime import date, time, datetime
 from enum import Enum
 from typing import Optional
 
@@ -33,6 +33,8 @@ class AttendanceRequest(BaseModel):
     via_station: Optional[list[str]] = None
     arrival_station: Optional[str] = None
     transport_cost: Optional[int] = None
+    break_start: Optional[time] = None
+    break_end: Optional[time] = None
     reason: Optional[str] = None
 
 
@@ -52,7 +54,11 @@ class AttendanceResponse(BaseModel):
     via_station: Optional[list[str]] = None
     arrival_station: Optional[str] = None
     transport_cost: Optional[int] = None
+    break_start: Optional[time] = None
+    break_end: Optional[time] = None
     reason: Optional[str] = None
+    paid_leave_approval_status: Optional[str] = None
+    paid_leave_rejection_reason: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -61,6 +67,8 @@ class MonthConfirmationResponse(BaseModel):
     confirmed: bool
     year: int
     month: int
+    approval_status: Optional[str] = None
+    rejection_reason: Optional[str] = None
 
 
 # ===== 認証関連スキーマ =====
@@ -76,6 +84,8 @@ class UserResponse(BaseModel):
     username: str
     email: str
     is_active: bool
+    is_admin: bool = False
+    role: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -171,6 +181,21 @@ class ThreadDetailResponse(BaseModel):
 
 # ===== マイページスキーマ =====
 
+class MonthConfirmationStatus(BaseModel):
+    year: int
+    month: int
+    approval_status: Optional[str] = None
+    rejection_reason: Optional[str] = None
+
+
+class PaidLeaveStatusItem(BaseModel):
+    id: int
+    date: date
+    type_label: str
+    approval_status: str
+    rejection_reason: Optional[str] = None
+
+
 class MypageResponse(BaseModel):
     username: str
     email: str
@@ -182,3 +207,84 @@ class MypageResponse(BaseModel):
     absence_count: int
     paid_leave_used: float
     paid_leave_remaining: float
+    total_work_minutes: int
+    overtime_minutes: int
+    month_confirmations: list[MonthConfirmationStatus] = []
+    paid_leave_statuses: list[PaidLeaveStatusItem] = []
+
+
+# ===== 管理者スキーマ =====
+
+class AdminUserCreateRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+    role: Optional[str] = None
+    paid_leave_days: int = 20
+    paid_leave_month: int = 4
+
+
+class AdminUserUpdateRequest(BaseModel):
+    username: str
+    email: str
+    role: Optional[str] = None
+    paid_leave_days: int = 20
+    paid_leave_month: int = 4
+    is_active: bool = True
+
+
+class AdminUserResponse(BaseModel):
+    id: int
+    username: str
+    email: str
+    role: Optional[str] = None
+    is_active: bool
+    is_admin: bool
+    paid_leave_days: int
+    paid_leave_month: int
+
+    model_config = {"from_attributes": True}
+
+
+class MonthlyApprovalItem(BaseModel):
+    id: int
+    user_id: int
+    username: str
+    year: int
+    month: int
+    confirmed_at: str
+    approval_status: str
+    rejection_reason: Optional[str] = None
+
+
+class PaidLeaveApprovalItem(BaseModel):
+    id: int
+    user_id: int
+    username: str
+    date: date
+    type: str
+    type_label: str
+    paid_leave: bool
+    half_paid_leave: bool
+    paid_leave_approval_status: str
+    paid_leave_rejection_reason: Optional[str] = None
+
+
+class ApprovalActionRequest(BaseModel):
+    rejection_reason: Optional[str] = None
+
+
+class LeaveReviewRequestItem(BaseModel):
+    id: int
+    user_id: int
+    username: str
+    year: int
+    month: int
+    created_at: str
+
+
+class AdminDashboardResponse(BaseModel):
+    user_count: int
+    pending_monthly_count: int
+    pending_leave_count: int
+    leave_review_request_count: int = 0

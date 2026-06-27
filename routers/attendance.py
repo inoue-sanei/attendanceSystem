@@ -17,7 +17,7 @@ def get_monthly(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return service.get_monthly_attendance(db, year, month)
+    return service.get_monthly_attendance(db, current_user.id, year, month)
 
 
 @router.post("", response_model=AttendanceResponse, status_code=status.HTTP_201_CREATED)
@@ -26,7 +26,7 @@ def register(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return service.register(db, request)
+    return service.register(db, current_user.id, request)
 
 
 @router.put("/{attendance_id}", response_model=AttendanceResponse)
@@ -36,7 +36,7 @@ def update(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return service.update(db, attendance_id, request)
+    return service.update(db, current_user.id, attendance_id, request)
 
 
 @router.delete("/{attendance_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -45,4 +45,4 @@ def delete(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    service.delete(db, attendance_id)
+    service.delete(db, current_user.id, attendance_id)

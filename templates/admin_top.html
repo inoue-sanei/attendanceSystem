@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理者TOP - 勤怠管理</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="admin-page">
+  <header>
+    <h1>勤怠管理 <span class="admin-badge">管理者</span></h1>
+    <div class="header-user">
+      <span id="header-username" class="header-username"></span>
+      <button id="logout-btn" class="btn-logout" type="button">ログアウト</button>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <div class="page-title">管理者ダッシュボード</div>
+
+    <!-- サマリーカード -->
+    <div class="admin-summary-grid">
+      <div class="admin-summary-card">
+        <div class="admin-summary-value" id="summary-users">-</div>
+        <div class="admin-summary-label">作業者数</div>
+      </div>
+      <div class="admin-summary-card admin-summary-card--warn" id="card-monthly">
+        <div class="admin-summary-value" id="summary-monthly">-</div>
+        <div class="admin-summary-label">月次承認待ち</div>
+      </div>
+      <div class="admin-summary-card admin-summary-card--warn" id="card-leave">
+        <div class="admin-summary-value" id="summary-leave">-</div>
+        <div class="admin-summary-label">有休承認待ち</div>
+      </div>
+      <div class="admin-summary-card admin-summary-card--notify" id="card-review">
+        <div class="admin-summary-value" id="summary-review">-</div>
+        <div class="admin-summary-label">承認依頼通知</div>
+      </div>
+    </div>
+
+    <!-- メニュー -->
+    <div class="admin-menu">
+      <a href="/admin/users" class="admin-menu-item">
+        <div class="admin-menu-icon">&#128101;</div>
+        <div class="admin-menu-body">
+          <div class="admin-menu-label">作業者一覧</div>
+          <div class="admin-menu-desc">作業者の登録・編集・削除</div>
+        </div>
+        <div class="admin-menu-arrow">&#8250;</div>
+      </a>
+      <a href="/admin/approval" class="admin-menu-item">
+        <div class="admin-menu-icon">&#9989;</div>
+        <div class="admin-menu-body">
+          <div class="admin-menu-label">勤怠申請承認</div>
+          <div class="admin-menu-desc">月次確定・有休申請の承認／否認</div>
+        </div>
+        <span id="approval-badge" class="admin-menu-badge hidden"></span>
+        <div class="admin-menu-arrow">&#8250;</div>
+      </a>
+    </div>
+  </main>
+
+  <script src="/static/js/admin_top.js"></script>
+</body>
+</html>

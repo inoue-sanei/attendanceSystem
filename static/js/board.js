@@ -6,6 +6,8 @@ if (!token) location.href = '/login';
 const currentUsername = localStorage.getItem('username') || '';
 document.getElementById('header-username').textContent = currentUsername;
 document.getElementById('logout-btn').addEventListener('click', () => {
+  const _t = localStorage.getItem('authToken');
+  if (_t) fetch('/auth/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${_t}` } }).catch(() => {});
   localStorage.removeItem('authToken');
   localStorage.removeItem('username');
   location.href = '/login';
@@ -122,5 +124,11 @@ document.getElementById('btn-post-thread').addEventListener('click', async () =>
     btn.disabled = false; btn.textContent = '投稿する';
   }
 });
+
+// 掲示板を訪問したタイムスタンプを保存（マイページ通知リセット用）
+(function markBoardSeen() {
+  const key = `boardLastSeen_${currentUsername}`;
+  localStorage.setItem(key, new Date().toISOString());
+})();
 
 loadThreadList();

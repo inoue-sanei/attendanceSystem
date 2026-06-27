@@ -29,11 +29,19 @@
       </div>
     </div>
 
-    <!-- 確定済みバナー -->
+    <!-- 確定済みバナー（承認待ち・承認済み） -->
     <div id="confirmed-banner" class="confirmed-banner hidden">
-      <span class="confirmed-icon">✓</span>
-      <span id="confirmed-banner-text"></span>は確定済みです。勤怠情報の変更はできません。
+      <span class="confirmed-icon" id="confirmed-icon">✓</span>
+      <span id="confirmed-banner-text"></span>
     </div>
+
+    <!-- 否認バナー -->
+    <div id="rejected-banner" class="rejected-banner hidden">
+      <div class="rejected-banner-title">&#10007; 月次勤怠が否認されました</div>
+      <div id="rejected-banner-reason" class="rejected-banner-reason"></div>
+      <div class="rejected-banner-hint">内容を修正して再申請してください。</div>
+    </div>
+
 
     <div class="legend">
       <div class="legend-item"><div class="legend-badge" style="background:#4CAF50"></div>出勤</div>
@@ -98,6 +106,12 @@
           <textarea id="reason" placeholder="理由を入力してください..."></textarea>
         </div>
 
+        <!-- 有給・半休申請ステータス（既存レコード編集時のみ表示） -->
+        <div id="paid-leave-status-field" style="display:none">
+          <span id="paid-leave-status-badge" class="approval-status-badge"></span>
+          <p id="paid-leave-rejection-reason-text" class="approval-rejection-reason" style="display:none"></p>
+        </div>
+
         <!-- 出勤・遅刻・早退のみ -->
         <div id="time-fields">
           <div class="form-group">
@@ -107,6 +121,16 @@
           <div class="form-group">
             <label for="end-time">退勤時刻 <span class="required">*</span></label>
             <input type="time" id="end-time">
+          </div>
+        </div>
+        <div id="break-time-fields" style="display:none">
+          <div class="form-group">
+            <label for="break-start">休憩開始</label>
+            <input type="time" id="break-start">
+          </div>
+          <div class="form-group">
+            <label for="break-end">休憩終了</label>
+            <input type="time" id="break-end">
           </div>
         </div>
 
@@ -147,7 +171,7 @@
 
         <!-- 出勤・遅刻・早退のみ -->
         <div id="work-description-field" class="form-group" style="display:none">
-          <label for="work-description">業務内容 <span class="required">*</span></label>
+          <label for="work-description">業務内容</label>
           <textarea id="work-description" placeholder="業務内容を入力してください..."></textarea>
         </div>
 

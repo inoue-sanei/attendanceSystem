@@ -46,3 +46,20 @@ def board_page():
 @router.get("/board/thread/{thread_id}")
 def board_thread_page(thread_id: int):
     return FileResponse(_TEMPLATES / "board_thread.html", media_type="text/html")
+
+
+# ── 管理者ページ ────────────────────────────────────
+
+@router.get("/admin")
+def admin_top_page():
+    return FileResponse(_TEMPLATES / "admin_top.html", media_type="text/html")
+
+
+@router.get("/admin/users")
+def admin_users_page():
+    return FileResponse(_TEMPLATES / "admin_users.html", media_type="text/html")
+
+
+@router.get("/admin/approval")
+def admin_approval_page():
+    return FileResponse(_TEMPLATES / "admin_approval.html", media_type="text/html")

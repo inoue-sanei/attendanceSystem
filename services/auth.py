@@ -102,4 +102,11 @@ def get_current_user(
             detail="ユーザーが見つかりません。",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    jti = payload.get("jti")
+    if jti is None or jti != user.session_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="別の端末からログインされました。再度ログインしてください。",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return user

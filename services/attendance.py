@@ -5,11 +5,13 @@ from schemas import AttendanceRequest, AttendanceResponse, AttendanceType, TYPE_
 from exceptions import AttendanceAlreadyExistsError, AttendanceNotFoundError, MonthAlreadyConfirmedError
 
 
-def _assert_not_confirmed(db: Session, target_date) -> None:
-    """確定済み月への変更を拒否する"""
+def _assert_not_confirmed(db: Session, user_id: int, target_date) -> None:
+    """確定済み（PENDING/APPROVED）月への変更を拒否する"""
     exists = db.query(MonthlyConfirmation).filter(
+        MonthlyConfirmation.user_id == user_id,
         MonthlyConfirmation.year == target_date.year,
         MonthlyConfirmation.month == target_date.month,
+        MonthlyConfirmation.approval_status.in_(["PENDING", "APPROVED"]),
     ).first()
     if exists:
         raise MonthAlreadyConfirmedError(
@@ -18,12 +20,10 @@ def _assert_not_confirmed(db: Session, target_date) -> None:
 
 
 def _to_csv(values: list[str] | None) -> str | None:
-    """リスト → カンマ区切り文字列"""
     return ",".join(v for v in values if v) if values else None
 
 
 def _from_csv(value: str | None) -> list[str] | None:
-    """カンマ区切り文字列 → リスト"""
     return value.split(",") if value else None
 
 
@@ -44,14 +44,19 @@ def _to_response(record: AttendanceRecord) -> AttendanceResponse:
         via_station=_from_csv(record.via_station),
         arrival_station=record.arrival_station,
         transport_cost=record.transport_cost,
+        break_start=record.break_start,
+        break_end=record.break_end,
         reason=record.reason,
+        paid_leave_approval_status=record.paid_leave_approval_status,
+        paid_leave_rejection_reason=record.paid_leave_rejection_reason,
     )
 
 
-def get_monthly_attendance(db: Session, year: int, month: int) -> list[AttendanceResponse]:
+def get_monthly_attendance(db: Session, user_id: int, year: int, month: int) -> list[AttendanceResponse]:
     records = (
         db.query(AttendanceRecord)
         .filter(
+            AttendanceRecord.user_id == user_id,
             extract("year", AttendanceRecord.date) == year,
             extract("month", AttendanceRecord.date) == month,
         )
@@ -61,10 +66,13 @@ def get_monthly_attendance(db: Session, year: int, month: int) -> list[Attendanc
     return [_to_response(r) for r in records]
 
 
-def register(db: Session, request: AttendanceRequest) -> AttendanceResponse:
-    _assert_not_confirmed(db, request.date)
+def register(db: Session, user_id: int, request: AttendanceRequest) -> AttendanceResponse:
+    _assert_not_confirmed(db, user_id, request.date)
 
-    existing = db.query(AttendanceRecord).filter(AttendanceRecord.date == request.date).first()
+    existing = db.query(AttendanceRecord).filter(
+        AttendanceRecord.user_id == user_id,
+        AttendanceRecord.date == request.date,
+    ).first()
     if existing:
         raise AttendanceAlreadyExistsError("この日付の勤怠は既に登録されています")
 
@@ -72,7 +80,11 @@ def register(db: Session, request: AttendanceRequest) -> AttendanceResponse:
     is_late_early = request.type.value in ("LATE", "EARLY_LEAVE")
     needs_reason  = is_absent or is_late_early
 
+    needs_approval = (is_absent and request.paid_leave) or (is_late_early and request.half_paid_leave)
+    approval_status = "PENDING" if needs_approval else None
+
     record = AttendanceRecord(
+        user_id=user_id,
         date=request.date,
         type=request.type.value,
         start_time=None if is_absent else request.start_time,
@@ -86,7 +98,10 @@ def register(db: Session, request: AttendanceRequest) -> AttendanceResponse:
         via_station=None if is_absent else _to_csv(request.via_station),
         arrival_station=None if is_absent else request.arrival_station,
         transport_cost=None if is_absent else request.transport_cost,
+        break_start=None if is_absent else request.break_start,
+        break_end=None if is_absent else request.break_end,
         reason=request.reason if needs_reason else None,
+        paid_leave_approval_status=approval_status,
     )
     db.add(record)
     db.commit()
@@ -94,16 +109,28 @@ def register(db: Session, request: AttendanceRequest) -> AttendanceResponse:
     return _to_response(record)
 
 
-def update(db: Session, attendance_id: int, request: AttendanceRequest) -> AttendanceResponse:
-    record = db.query(AttendanceRecord).filter(AttendanceRecord.id == attendance_id).first()
+def update(db: Session, user_id: int, attendance_id: int, request: AttendanceRequest) -> AttendanceResponse:
+    record = db.query(AttendanceRecord).filter(
+        AttendanceRecord.id == attendance_id,
+        AttendanceRecord.user_id == user_id,
+    ).first()
     if not record:
         raise AttendanceNotFoundError(f"勤怠記録が見つかりません: id={attendance_id}")
 
-    _assert_not_confirmed(db, record.date)
+    _assert_not_confirmed(db, user_id, record.date)
 
     is_absent     = request.type.value == "ABSENT"
     is_late_early = request.type.value in ("LATE", "EARLY_LEAVE")
     needs_reason  = is_absent or is_late_early
+
+    needs_approval = (is_absent and request.paid_leave) or (is_late_early and request.half_paid_leave)
+    if needs_approval:
+        if record.paid_leave_approval_status != "APPROVED":
+            record.paid_leave_approval_status = "PENDING"
+            record.paid_leave_rejection_reason = None
+    elif not needs_approval:
+        record.paid_leave_approval_status = None
+        record.paid_leave_rejection_reason = None
 
     record.type             = request.type.value
     record.start_time       = None if is_absent else request.start_time
@@ -116,18 +143,23 @@ def update(db: Session, attendance_id: int, request: AttendanceRequest) -> Atten
     record.departure_station = None if is_absent else request.departure_station
     record.via_station      = None if is_absent else _to_csv(request.via_station)
     record.arrival_station  = None if is_absent else request.arrival_station
-    record.transport_cost   = None if is_absent else request.transport_cost
-    record.reason           = request.reason if needs_reason else None
+    record.transport_cost = None if is_absent else request.transport_cost
+    record.break_start    = None if is_absent else request.break_start
+    record.break_end      = None if is_absent else request.break_end
+    record.reason         = request.reason if needs_reason else None
     db.commit()
     db.refresh(record)
     return _to_response(record)
 
 
-def delete(db: Session, attendance_id: int) -> None:
-    record = db.query(AttendanceRecord).filter(AttendanceRecord.id == attendance_id).first()
+def delete(db: Session, user_id: int, attendance_id: int) -> None:
+    record = db.query(AttendanceRecord).filter(
+        AttendanceRecord.id == attendance_id,
+        AttendanceRecord.user_id == user_id,
+    ).first()
     if not record:
         raise AttendanceNotFoundError(f"勤怠記録が見つかりません: id={attendance_id}")
 
-    _assert_not_confirmed(db, record.date)
+    _assert_not_confirmed(db, user_id, record.date)
     db.delete(record)
     db.commit()

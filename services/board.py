@@ -196,6 +196,34 @@ def delete_comment(db: Session, comment_id: int, user_id: int) -> tuple[bool, st
     return True, None
 
 
+def get_notification_count(db: Session, since_iso: str, current_user_id: int) -> dict:
+    """since_iso (ISO8601) 以降に作成された自分以外のスレッド・コメント件数を返す"""
+    try:
+        since_dt = datetime.fromisoformat(since_iso.replace("Z", "+00:00")).replace(tzinfo=None)
+    except (ValueError, AttributeError):
+        since_dt = datetime.utcnow()
+
+    thread_count = (
+        db.query(func.count(BulletinThread.id))
+        .filter(
+            BulletinThread.user_id != current_user_id,
+            BulletinThread.created_at > since_dt,
+        )
+        .scalar()
+    ) or 0
+
+    comment_count = (
+        db.query(func.count(BulletinComment.id))
+        .filter(
+            BulletinComment.user_id != current_user_id,
+            BulletinComment.created_at > since_dt,
+        )
+        .scalar()
+    ) or 0
+
+    return {"thread_count": thread_count, "comment_count": comment_count, "total": thread_count + comment_count}
+
+
 def toggle_reaction(db: Session, target_type: str, target_id: int, user_id: int) -> dict:
     existing = (
         db.query(BulletinReaction)
